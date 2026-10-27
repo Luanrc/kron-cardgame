@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 // Only the local preview database. Start with a fresh match and empty slots.
-const base="http://127.0.0.1:8787/api/room";
+import { base } from "./local-room.mjs";
 const read=async(player=1)=>(await fetch(base+"?player="+player)).json();
 let room=await read();
 async function act(player,action,status=200,round=room.round) {

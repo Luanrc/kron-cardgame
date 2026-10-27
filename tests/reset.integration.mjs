@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 // Local preview only. This test resets the local fixture, never the hosted room.
-const base="http://127.0.0.1:8787/api/room";
+import { base } from "./local-room.mjs";
 let room=await(await fetch(base+"?player=spectator")).json();
 async function request(body){const response=await fetch(base,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});return{status:response.status,body:await response.json()};}
 async function reset(){const response=await request({match:room.match,round:room.round,action:{type:"full_reset"}});assert.equal(response.status,200);room=response.body;}

@@ -2,6 +2,8 @@
 
 Protótipo 0.14 de um cardgame online 1v1. Este diretório é o projeto do game; não confundir com Kron RPG.
 
+Vercel: vercel.json executa npm run build:vercel (Next.js nativo), produzindo .next/routes-manifest.json. Next usa server/room-handler.ts para encaminhar a API ao servidor atual; ambos os endereços compartilham a mesma sala. Sites continua com Vinext e D1 direto em server/room-cloudflare.ts. O script de Sites define KRON_SITES para manter os aliases de cada build separados. Node fixado em 22.x. Configuração e limites em docs/vercel.md. Testes de encaminhamento em tests/room-proxy.test.mjs e tests/room-proxy.integration.mjs; integrações só aceitam servidores locais.
+
 Resetar partida na entrada limpa toda a sala, inclusive durante uma partida: classes, escolhas, vida, campos, confirmações, Fadiga, Sangramento, planos de Flutuando, Poder Sagrado e gastos. Incrementa a identidade da partida e o sinal lobbyReset; clientes na sala ou no seletor de baralho retornam à entrada. A API valida partida e rodada e rejeita pedidos atrasados ou resets concorrentes repetidos. Nova rodada e Nova partida mantêm seus comportamentos anteriores. Testes: tests/reset.test.mjs e tests/reset.integration.mjs (somente servidor local).
 
 Interface em base carvão, com cores discretas por classe: Guerreiro #754A2D, Monge #58CBBB (aquamarine), Ladino #F0E580 e Paladino #E492E2. A seleção mostra o núcleo das mecânicas, quantidade de cartas e vida inicial. Cartas compactas exibem efeitos em negrito; a ampliação por mouse ou foco mostra o texto completo. A apresentação resumida em lib/card-presentation.ts não altera os efeitos usados pelo combate. Cartas ocultas continuam ocultas na ampliação.

@@ -26,6 +26,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "kron-room-handler": [
+        "./server/room-cloudflare.ts"
       ]
     },
     "types": [

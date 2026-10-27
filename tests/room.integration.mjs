@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 // Only local preview: this script never mutates the hosted room.
-const base = "http://127.0.0.1:8787/api/room";
+import { base } from "./local-room.mjs";
 const read = async player => (await fetch(base + "?player=" + player)).json();
 let start = await read(1);
 let round = start.round;
