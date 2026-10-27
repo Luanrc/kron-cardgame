@@ -1,4 +1,4 @@
-# Guerreiro: catálogo e futura resolução
+# Guerreiro: catálogo e resolução
 
 ## Transcrição
 
@@ -22,10 +22,10 @@ Ordem de leitura da imagem: primeira fileira da esquerda para a direita, depois 
 - lib/cards.ts: definições compartilhadas imutáveis por convenção, com ID estável, classe, ordem, texto de apresentação e efeitos estruturados. Duas cartas com o mesmo texto continuam tendo IDs distintos.
 - deckFor(player): instâncias pertencentes a cada jogador que apontam para as mesmas definições. Os tokens internos antigos são preservados para compatibilidade com partidas existentes.
 - components/card-text.tsx: apenas apresentação. Não calcula efeitos.
-- lib/game.ts: colocação, cartas Não age obrigatórias, confirmação, revelação, persistência e recuperação de Fadiga. A resolução de dano e efeitos de combate ainda não está implementada.
+- lib/game.ts: colocação, cartas Não age obrigatórias, confirmação, revelação, persistência e recuperação de Fadiga. Dano e efeitos são resolvidos em lib/battle.ts.
 - app/api/room/route.ts: autoridade do estado compartilhado, proteção de cartas ocultas e escrita com controle de versão.
 
-O futuro resolvedor deverá consumir os dados estruturados do catálogo no servidor. Nunca deve extrair números ou palavras do texto renderizado. A mesma definição de Guerreiro pode pertencer aos dois lados; Fadiga e outros estados mutáveis devem pertencer à instância de cada jogador, nunca à definição compartilhada.
+O resolvedor consome os dados estruturados do catálogo no servidor. Nunca deve extrair números ou palavras do texto renderizado. A mesma definição de Guerreiro pode pertencer aos dois lados; Fadiga e outros estados mutáveis devem pertencer à instância de cada jogador, nunca à definição compartilhada.
 
 Todos os baralhos precisam conter cartas Não age, e todas essas cópias são obrigatórias em cada rodada. Elas não podem ter Fadiga. A regra é derivada do efeito no_action, sem comparação de texto ou IDs fixos. validateDeck valida o contrato do baralho; a confirmação no servidor valida a presença das obrigatórias no campo.
 
@@ -44,8 +44,8 @@ O estado da sala salva usedRound e availableRound por instância e jogador. Os r
 
 As rodadas restantes correspondem às rodadas bloqueadas ainda a cumprir: availableRound - max(rodadaAtual, usedRound + 1). Exemplo: Fadiga 2 usada na rodada 1 mostra 2 após o uso e durante a preparação da rodada 2; mostra 1 na rodada 3; desaparece e volta à mão na rodada 4. A mesma lista pública é enviada aos dois jogadores e ao espectador. Não inclui mão ou escolhas ocultas da rodada em preparação.
 
-## Decisões antes de executar o combate
+## Resolução de combate
 
-- Definir cálculo de dano contra defesa e ordem de resolução. O protótipo não possui vida ou resultado de combate nesta etapa.
+- Cada ponto de defesa cobre um de dano. Ataques são simultâneos por slot. Cada jogador tem 10 de vida; zero encerra a partida e zero simultâneo no mesmo slot é empate. Ordem e detalhes em docs/battle-rules.md.
 
-O botão Pronto revela as cartas e registra sua Fadiga; ainda não calcula dano nem resolve Atordoamento, seta ou Ripostar.
+O segundo Pronto revela as cartas, resolve os confrontos uma única vez, reduz a vida e registra a Fadiga. Atordoamento preserva efeitos vindos do slot anterior e bloqueia apenas a carta atual.

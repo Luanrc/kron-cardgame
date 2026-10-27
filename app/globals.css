@@ -44,6 +44,18 @@ button.card-slot:hover:not(:disabled) { background: var(--pale); border-color: v
 .hand-card:disabled { border-color: #ccc; background: #f1f1f1; color: #888; }
 .actions { margin-top: 18px; }
 .round-label { margin: 8px 0; font-weight: bold; }
+.life-pools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.life-pool { padding: 12px 16px; border: 2px solid var(--accent); background: var(--pale); display: flex; flex-direction: column; }
+.life-pool > span { font-size: 13px; }
+.life-pool > strong { font-size: 30px; }
+.life-pool small { font-size: 12px; font-weight: normal; }
+.match-result { padding: 14px; border: 2px solid #326747; background: #edf6ef; font-weight: bold; }
+.battle-summary { margin: 18px 0; }
+.table-scroll { overflow-x: auto; }
+.battle-summary table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+.battle-summary caption { text-align: left; color: #666; padding-bottom: 8px; }
+.battle-summary th, .battle-summary td { padding: 8px; border: 1px solid #ccc; }
+.battle-summary thead { background: #f1f1f1; }
 .required-note { font-size: 13px; color: #6b481b; }
 .hand-card .mandatory-badge { color: #6b481b; font-weight: bold; padding-top: 4px; }
 .fatigue-panel { border: 1px solid #ccc; margin-top: 16px; padding: 16px; background: #fafafa; }

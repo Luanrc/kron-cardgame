@@ -29,11 +29,12 @@ export async function POST(request: Request) {
   let input;
   try { input = JSON.parse(raw); } catch { return reply({ error: "JSON inválido." }, 400); }
   if (input?.player === "spectator") return reply({ error: "Espectadores só podem assistir." }, 403);
-  if (!input || (input.player !== 1 && input.player !== 2) || !Number.isInteger(input.round) || !input.action || !["place", "ready", "reset"].includes(input.action.type)) return reply({ error: "Pedido inválido." }, 400);
+  if (!input || (input.player !== 1 && input.player !== 2) || !Number.isInteger(input.round) || !Number.isInteger(input.match) || !input.action || !["place", "ready", "reset", "restart"].includes(input.action.type)) return reply({ error: "Pedido inválido. Atualize a página se necessário." }, 400);
   const player: Player = input.player;
   for (let attempt = 0; attempt < 6; attempt++) {
    const room = await readRoom();
    const state = normalizeGameState(JSON.parse(room.state) as GameState);
+   if (input.match !== state.match) return reply({ error: "Uma nova partida começou. Aguarde a atualização da sala." }, 409);
    if (input.round !== state.round) return reply({ error: "A rodada mudou. Aguarde a atualização da sala." }, 409);
    let next;
    try { next = applyAction(state, player, input.action as GameAction); }

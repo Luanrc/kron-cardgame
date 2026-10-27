@@ -118,4 +118,51 @@ test("saved legacy rounds gain fatigue without losing the field; old invalid rea
  assert.equal(preparing.ready[1],false);
  assert.deepEqual(preparing.fatigue,{1:{},2:{}});
  assert.deepEqual(normalizeGameState(upgraded),upgraded);
+ assert.deepEqual(upgraded.life,{1:10,2:10});
+ assert.deepEqual(upgraded.battle,[]);
+});
+
+test("life is resolved once after both ready and persists between rounds",()=>{
+ let s = fill(fill(newGame(),1),2);
+ assert.deepEqual(s.life,{1:10,2:10});
+ s = applyAction(s,1,{type:"ready"});
+ assert.deepEqual(s.life,{1:10,2:10});
+ assert.deepEqual(roomView(s,"spectator",0).battle,[]);
+ s = applyAction(s,2,{type:"ready"});
+ assert.deepEqual(s.life,{1:9,2:9});
+ assert.equal(s.battle.length,5);
+ assert.deepEqual(roomView(s,"spectator",1).life,s.life);
+ assert.throws(()=>applyAction(s,2,{type:"ready"}));
+ assert.deepEqual(normalizeGameState(s).life,{1:9,2:9});
+ s = applyAction(s,1,{type:"reset"});
+ assert.deepEqual(s.life,{1:9,2:9});
+ assert.deepEqual(s.battle,[]);
+ assert.equal(s.match,1);
+});
+
+test("lethal results lock the game, a simultaneous knockout draws, and restart is a new match",()=>{
+ let s = newGame(); s.life = {1:1,2:1};
+ s = ["4","1","2","3","6"].reduce((state,card,slot)=>applyAction(state,1,{type:"place",slot,card}),s);
+ s = ["D","A","B","C","F"].reduce((state,card,slot)=>applyAction(state,2,{type:"place",slot,card}),s);
+ s = applyAction(s,1,{type:"ready"});
+ s = applyAction(s,2,{type:"ready"});
+ assert.deepEqual(s.life,{1:0,2:0});
+ assert.deepEqual(s.result,{type:"draw"});
+ assert.equal(s.battle.length,1);
+ for (const action of [{type:"reset"},{type:"ready"},{type:"place",slot:0,card:"4"}]) assert.throws(()=>applyAction(s,1,action),/terminou/);
+ assert.throws(()=>applyAction(s,"spectator",{type:"restart"}));
+ const restarted = applyAction(s,1,{type:"restart"});
+ assert.deepEqual(restarted,newGame(1,2));
+ assert.throws(()=>applyAction(restarted,1,{type:"restart"}),/ainda não terminou/);
+});
+
+test("the first lethal slot wins even if a later slot would have killed the winner",()=>{
+ let s = newGame(); s.life = {1:1,2:2};
+ s = ["10","1","2","3","4"].reduce((state,card,slot)=>applyAction(state,1,{type:"place",slot,card}),s);
+ s = ["A","J","B","C","D"].reduce((state,card,slot)=>applyAction(state,2,{type:"place",slot,card}),s);
+ s = applyAction(s,1,{type:"ready"});
+ s = applyAction(s,2,{type:"ready"});
+ assert.deepEqual(s.result,{type:"win",winner:1});
+ assert.deepEqual(s.life,{1:1,2:0});
+ assert.equal(s.battle.at(-1).slot,1);
 });
