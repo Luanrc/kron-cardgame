@@ -8,15 +8,16 @@ export type Viewer = Player | "spectator";
 export type Slots = (string | null)[];
 export type FatigueEntry = { usedRound: number; availableRound: number };
 export type FatigueState = Record<Player, Record<string, FatigueEntry>>;
-export type GameState = { holyPower: HolyPower; holySpending: HolySpending; bleeding: SlotCounters; floating: FloatingState; decks: Record<Player, DeckId>; match: number; round: number; slots: Record<Player, Slots>; ready: Record<Player, boolean>; fatigue: FatigueState; life: Life; result: MatchResult; battle: SlotResolution[] };
+export type GameState = { lobbyReset: number; holyPower: HolyPower; holySpending: HolySpending; bleeding: SlotCounters; floating: FloatingState; decks: Record<Player, DeckId>; match: number; round: number; slots: Record<Player, Slots>; ready: Record<Player, boolean>; fatigue: FatigueState; life: Life; result: MatchResult; battle: SlotResolution[] };
 export type GameAction = { type: "holy_spend"; card: string; amount: number } | { type: "aim"; card: string; targets: number[] } | { type: "select_deck"; deck: DeckId } | { type: "place"; slot: number; card: string | null } | { type: "ready" } | { type: "reset" } | { type: "restart" };
 export type FieldView = { player: Player; slots: (string | null)[]; ready: boolean };
 export type FatigueView = { player: Player; cards: { card: string; remainingRounds: number; availableRound: number }[] };
-export type RoomView = { holyPower: HolyPower; holySpending: HolySpending; bleeding: SlotCounters; bleedingRound: number; floating: FloatingState; decks: Record<Player, DeckId>; version: number; match: number; round: number; initialLife: number; life: Life; result: MatchResult; battle: SlotResolution[]; revealed: boolean; ownSlots: Slots; fields: FieldView[]; fatigue: FatigueView[] };
+export type RoomView = { lobbyReset: number; holyPower: HolyPower; holySpending: HolySpending; bleeding: SlotCounters; bleedingRound: number; floating: FloatingState; decks: Record<Player, DeckId>; version: number; match: number; round: number; initialLife: number; life: Life; result: MatchResult; battle: SlotResolution[]; revealed: boolean; ownSlots: Slots; fields: FieldView[]; fatigue: FatigueView[] };
 const players: Player[] = [1, 2];
 export const cardsFor = (player: Player, deck: DeckId = "warrior") => deckFor(player, deck).map(card => card.instanceId);
 export const requiredCardsFor = (player: Player, deck: DeckId = "warrior") => cardsFor(player, deck).filter(card => isMandatoryCard(definitionFor(player, card)!));
-export const newGame = (round = 1, match = 1): GameState => ({ holyPower: emptyHolyPower(), holySpending: emptyHolySpending(), bleeding: emptySlotCounters(), floating: emptyFloating(), decks: { 1: "warrior", 2: "warrior" }, match, round, slots: { 1: Array(5).fill(null), 2: Array(5).fill(null) }, ready: { 1: false, 2: false }, fatigue: { 1: {}, 2: {} }, life: { 1: INITIAL_LIFE, 2: INITIAL_LIFE }, result: null, battle: [] });
+export const newGame = (round = 1, match = 1): GameState => ({ lobbyReset: 0, holyPower: emptyHolyPower(), holySpending: emptyHolySpending(), bleeding: emptySlotCounters(), floating: emptyFloating(), decks: { 1: "warrior", 2: "warrior" }, match, round, slots: { 1: Array(5).fill(null), 2: Array(5).fill(null) }, ready: { 1: false, 2: false }, fatigue: { 1: {}, 2: {} }, life: { 1: INITIAL_LIFE, 2: INITIAL_LIFE }, result: null, battle: [] });
+export const resetMatch = (state: GameState): GameState => ({ ...newGame(1, state.match + 1), lobbyReset: state.lobbyReset + 1 });
 export const isRevealed = (state: GameState) => state.ready[1] && state.ready[2];
 
 export function isFatigued(state: GameState, player: Player, card: string) {
@@ -50,7 +51,7 @@ function removeRecoveredCards(state: GameState) {
 export function normalizeGameState(input: Pick<GameState, "round" | "slots" | "ready"> & Partial<Omit<GameState, "round" | "slots" | "ready">>): GameState {
  const legacy = !input.fatigue;
  const life = structuredClone(input.life ?? { 1: INITIAL_LIFE, 2: INITIAL_LIFE });
- const state: GameState = { ...structuredClone(input), holyPower: structuredClone(input.holyPower ?? emptyHolyPower()), holySpending: structuredClone(input.holySpending ?? emptyHolySpending()), bleeding: structuredClone(input.bleeding ?? emptySlotCounters()), floating: structuredClone(input.floating ?? emptyFloating()), decks: structuredClone(input.decks ?? { 1: "warrior", 2: "warrior" }), match: input.match ?? 1, fatigue: structuredClone(input.fatigue ?? { 1: {}, 2: {} }), life, result: input.result ?? resultFor(life), battle: structuredClone(input.battle ?? []) };
+ const state: GameState = { ...structuredClone(input), lobbyReset: input.lobbyReset ?? 0, holyPower: structuredClone(input.holyPower ?? emptyHolyPower()), holySpending: structuredClone(input.holySpending ?? emptyHolySpending()), bleeding: structuredClone(input.bleeding ?? emptySlotCounters()), floating: structuredClone(input.floating ?? emptyFloating()), decks: structuredClone(input.decks ?? { 1: "warrior", 2: "warrior" }), match: input.match ?? 1, fatigue: structuredClone(input.fatigue ?? { 1: {}, 2: {} }), life, result: input.result ?? resultFor(life), battle: structuredClone(input.battle ?? []) };
  if (legacy) {
   if (isRevealed(state)) registerFatigue(state);
   else for (const player of players) {
@@ -73,13 +74,14 @@ export function applyAction(input: GameState, player: Player, action: GameAction
  }
  if (action.type === "restart") {
   if (!state.result) throw new Error("A partida ainda não terminou.");
-  return { ...newGame(1, state.match + 1), decks: structuredClone(state.decks) };
+  return { ...newGame(1, state.match + 1), lobbyReset: state.lobbyReset, decks: structuredClone(state.decks) };
  }
  if (state.result) throw new Error("A partida terminou. Inicie uma nova partida.");
  if (action.type === "reset") {
   if (!isRevealed(state)) throw new Error("A rodada ainda não terminou.");
   const next = newGame(state.round + 1, state.match);
   next.decks = structuredClone(state.decks);
+  next.lobbyReset = state.lobbyReset;
   next.life = structuredClone(state.life);
   next.fatigue = structuredClone(state.fatigue);
   next.bleeding = structuredClone(state.bleeding);
@@ -147,7 +149,7 @@ export function roomView(input: GameState, player: Viewer, version: number): Roo
  return {
   bleeding: state.bleeding, bleedingRound: state.round + (revealed ? 1 : 0),
   floating: { 1: revealed || player === 1 ? state.floating[1] : {}, 2: revealed || player === 2 ? state.floating[2] : {} },
-  holyPower: state.holyPower,
+  holyPower: state.holyPower, lobbyReset: state.lobbyReset,
   holySpending: { 1: revealed || player === 1 ? state.holySpending[1] : {}, 2: revealed || player === 2 ? state.holySpending[2] : {} },
   decks: state.decks, version, match: state.match, round: state.round, initialLife: INITIAL_LIFE, life: state.life, result: state.result, battle: revealed ? state.battle : [], revealed, ownSlots: player === "spectator" ? [] : state.slots[player],
   fields: players.map(side => ({

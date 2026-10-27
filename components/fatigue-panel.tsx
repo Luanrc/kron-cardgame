@@ -14,7 +14,7 @@ export function FatiguePanel({ fatigue }: { fatigue: FatigueView[] }) {
      {side.cards.map(entry => {
       const card = definitionFor(side.player, entry.card)!;
       return <li key={entry.card}>
-       <CardZoom side={side.player} value={<CardText card={card} />} caption={"Player " + side.player + " · Em Fadiga"} focusable>
+       <CardZoom side={side.player} deck={card.classId} value={<CardText card={card} />} previewValue={<CardText card={card} detailed />} caption={"Player " + side.player + " · Em Fadiga"} focusable>
         <div className="fatigue-entry">
          <strong>{classNameFor(card.classId)} · {String(card.number).padStart(2, "0")}</strong>
          <span>{card.text.main.join(" ")}</span>

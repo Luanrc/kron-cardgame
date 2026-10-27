@@ -1,6 +1,10 @@
 # Kron Card Game
 
-Protótipo 0.12 de um cardgame online 1v1. Este diretório é o projeto do game; não confundir com Kron RPG.
+Protótipo 0.13 de um cardgame online 1v1. Este diretório é o projeto do game; não confundir com Kron RPG.
+
+Resetar partida na entrada limpa toda a sala, inclusive durante uma partida: classes, escolhas, vida, campos, confirmações, Fadiga, Sangramento, planos de Flutuando, Poder Sagrado e gastos. Incrementa a identidade da partida e o sinal lobbyReset; clientes na sala ou no seletor de baralho retornam à entrada. A API valida partida e rodada e rejeita pedidos atrasados ou resets concorrentes repetidos. Nova rodada e Nova partida mantêm seus comportamentos anteriores. Testes: tests/reset.test.mjs e tests/reset.integration.mjs (somente servidor local).
+
+Interface em base carvão, com cores discretas por classe: Guerreiro #754A2D, Monge #49A58C, Ladino #F0E580 e Paladino #E492E2. A seleção mostra o núcleo das mecânicas, quantidade de cartas e vida inicial. Cartas compactas exibem efeitos em negrito; a ampliação por mouse ou foco mostra o texto completo. A apresentação resumida em lib/card-presentation.ts não altera os efeitos usados pelo combate. Cartas ocultas continuam ocultas na ampliação.
 
 Entrada dos jogadores em três etapas: escolher Player 1 ou Player 2, selecionar Guerreiro, Monge, Ladino ou Paladino e confirmar Entrar na sala. A escolha é persistida pelo servidor individualmente, com validação de classe e propriedade das cartas. Pode ser alterada no início da partida antes de colocar suas cartas; reentrar com a classe atual recupera o estado existente. Voltar permite trocar de jogador; Sair retorna ao início. Espectador entra diretamente na sala, sem escolher baralho, e vê as classes dos dois jogadores. Estados antigos continuam com Guerreiro, sem apagar a partida. Nova rodada e Nova partida preservam as classes.
 

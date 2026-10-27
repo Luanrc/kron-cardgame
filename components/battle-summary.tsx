@@ -3,7 +3,7 @@ import { classNameFor } from "../lib/cards";
 
 export function LifePool({ room }: { room: RoomView }) {
  return <div className="life-pools" aria-label="Vida dos jogadores">
-  {([1, 2] as const).map(player => <div key={player} className={"life-pool player-" + player} aria-label={"Vida do Player " + player}>
+  {([1, 2] as const).map(player => <div key={player} className={"life-pool player-" + player + " deck-" + room.decks[player]} aria-label={"Vida do Player " + player}>
    <span>Player {player} · {classNameFor(room.decks[player])}</span><strong>{room.life[player]} <small>/ {room.initialLife} de vida</small></strong>
    {room.decks[player] === "paladin" && <span>Poder Sagrado: {room.holyPower[player]}</span>}
   </div>)}

@@ -1,10 +1,10 @@
 import type { Player } from "./game";
 export type DeckId = "warrior" | "monk" | "rogue" | "paladin";
 export const deckOptions: readonly { id: DeckId; name: string; description: string }[] = [
- { id: "warrior", name: "Guerreiro", description: "Dano, defesa, Atordoamento e Ripostar." },
- { id: "monk", name: "Monge", description: "Defesa, Ripostar, Defletir e Refletir." },
- { id: "rogue", name: "Ladino", description: "Sangramento, Flutuando e Atordoamento." },
- { id: "paladin", name: "Paladino", description: "Poder Sagrado, dano e defesa." },
+ { id: "warrior", name: "Guerreiro", description: "Combina ataques e defesa. Ripostar reage ao dano sofrido, e Atordoamento impede a carta adversária de agir." },
+ { id: "monk", name: "Monge", description: "Defletir anula o dano do slot. Refletir protege os slots anterior e atual, devolvendo o dano ao adversário." },
+ { id: "rogue", name: "Ladino", description: "Sangramento deixa dano para a próxima rodada. Flutuando permite escolher os slots atingidos dentro do alcance da carta." },
+ { id: "paladin", name: "Paladino", description: "Acumula Poder Sagrado com ataques e defesas bem-sucedidos. Escolha quanto gastar para fortalecer uma carta com X por rodada." },
 ];
 export const classNameFor = (id: DeckId) => deckOptions.find(deck => deck.id === id)!.name;
 export const isDeckId = (value: unknown): value is DeckId => deckOptions.some(deck => deck.id === value);

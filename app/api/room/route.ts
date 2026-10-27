@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { rooms } from "../../../db/schema";
-import { applyAction, newGame, roomView, normalizeGameState, type GameAction, type GameState, type Player } from "../../../lib/game";
+import { applyAction, newGame, resetMatch, roomView, normalizeGameState, type GameAction, type GameState, type Player } from "../../../lib/game";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store" };
 const reply = (data: unknown, status = 200) => Response.json(data, { status, headers });
@@ -29,7 +29,8 @@ export async function POST(request: Request) {
   let input;
   try { input = JSON.parse(raw); } catch { return reply({ error: "JSON inválido." }, 400); }
   if (input?.player === "spectator") return reply({ error: "Espectadores só podem assistir." }, 403);
-  if (!input || (input.player !== 1 && input.player !== 2) || !Number.isInteger(input.round) || !Number.isInteger(input.match) || !input.action || !["holy_spend", "aim", "select_deck", "place", "ready", "reset", "restart"].includes(input.action.type)) return reply({ error: "Pedido inválido. Atualize a página se necessário." }, 400);
+  const lobbyReset = input?.player === undefined && input?.action?.type === "full_reset";
+  if (!input || (!lobbyReset && input.player !== 1 && input.player !== 2) || !Number.isInteger(input.round) || !Number.isInteger(input.match) || !input.action || (!lobbyReset && !["holy_spend", "aim", "select_deck", "place", "ready", "reset", "restart"].includes(input.action.type))) return reply({ error: "Pedido inválido. Atualize a página se necessário." }, 400);
   const player: Player = input.player;
   for (let attempt = 0; attempt < 6; attempt++) {
    const room = await readRoom();
@@ -37,10 +38,10 @@ export async function POST(request: Request) {
    if (input.match !== state.match) return reply({ error: "Uma nova partida começou. Aguarde a atualização da sala." }, 409);
    if (input.round !== state.round) return reply({ error: "A rodada mudou. Aguarde a atualização da sala." }, 409);
    let next;
-   try { next = applyAction(state, player, input.action as GameAction); }
+   try { next = lobbyReset ? resetMatch(state) : applyAction(state, player, input.action as GameAction); }
    catch (error) { return reply({ error: error instanceof Error ? error.message : "Ação inválida." }, 400); }
    const updated = await getDb().update(rooms).set({ state: JSON.stringify(next), version: room.version + 1 }).where(and(eq(rooms.id, 1), eq(rooms.version, room.version))).returning({ version: rooms.version });
-   if (updated.length) return reply(roomView(next, player, updated[0].version));
+   if (updated.length) return reply(roomView(next, lobbyReset ? "spectator" : player, updated[0].version));
   }
   return reply({ error: "A sala está ocupada. Tente novamente." }, 409);
  } catch { return reply({ error: "Não foi possível atualizar a sala. Tente novamente." }, 503); }
