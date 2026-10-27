@@ -4,3 +4,9 @@ export const messages = sqliteTable("messages", {
  player: integer("player").notNull(),
  requestId: text("request_id").notNull().unique(),
 });
+
+export const rooms = sqliteTable("rooms", {
+ id: integer("id").primaryKey(),
+ version: integer("version").notNull().default(0),
+ state: text("state").notNull(),
+});

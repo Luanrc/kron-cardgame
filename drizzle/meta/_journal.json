@@ -8,6 +8,13 @@
       "when": 1793072156458,
       "tag": "0000_glamorous_starfox",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793075134130,
+      "tag": "0001_old_glorian",
+      "breakpoints": true
     }
   ]
 }

@@ -1,13 +1,18 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-type Message = { id: number; player: number; text: string };
+import { cardsFor, type GameAction, type Player, type RoomView } from "../lib/game";
+
 export default function Home() {
- const [player, setPlayer] = useState<1 | 2 | null>(null);
- const [messages, setMessages] = useState<Message[]>([]);
+ const [player, setPlayer] = useState<Player | null>(null);
+ const [room, setRoom] = useState<RoomView | null>(null);
+ const [selected, setSelected] = useState<string | null>(null);
  const [status, setStatus] = useState("Conectando…");
- const [sending, setSending] = useState(false);
+ const [busy, setBusy] = useState(false);
  const [error, setError] = useState("");
- const bottom = useRef<HTMLDivElement>(null);
+ const pending = useRef(false);
+ const activePlayer = useRef<Player | null>(null);
+ const updateRoom = (next: RoomView) => setRoom(previous => !previous || next.version >= previous.version ? next : previous);
+
  useEffect(() => {
   if (!player) return;
   let active = true;
@@ -15,59 +20,92 @@ export default function Home() {
   const controller = new AbortController();
   async function refresh() {
    try {
-    const response = await fetch("/api/room", { cache: "no-store", signal: controller.signal });
+    const response = await fetch("/api/room?player=" + player, { cache: "no-store", signal: controller.signal });
     if (!response.ok) throw new Error();
-    const data = await response.json() as { messages: Message[] };
-    if (active) { setMessages(data.messages); setStatus("Conectado à sala"); }
+    const data = await response.json() as RoomView;
+    if (active) { updateRoom(data); setStatus("Conectado à sala"); }
    } catch { if (active) setStatus("Reconectando…"); }
    finally { if (active) timer = setTimeout(refresh, 1000); }
   }
   refresh();
   return () => { active = false; clearTimeout(timer); controller.abort(); };
  }, [player]);
- useEffect(() => {
-  const log = bottom.current?.parentElement;
-  log?.scrollTo({ top: log.scrollHeight, behavior: "smooth" });
- }, [messages.length, messages.at(-1)?.id]);
- async function send() {
-  if (!player || sending) return;
-  setSending(true); setError("");
-  try {
-   const response = await fetch("/api/room", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ player, requestId: crypto.randomUUID() }) });
-   if (!response.ok) throw new Error();
-   const data = await response.json() as { message: Message };
-   setMessages(previous => [...previous.filter(message => message.id !== data.message.id), data.message].sort((a,b) => a.id-b.id).slice(-100));
-  } catch { setError("Não foi possível enviar. Tente novamente."); }
-  finally { setSending(false); }
+
+ useEffect(() => { setSelected(null); setError(""); }, [room?.round]);
+
+ function enter(side: Player) {
+  activePlayer.current = side; setPlayer(side); setRoom(null); setSelected(null); setError(""); setStatus("Conectando…");
  }
+ function leave() {
+  activePlayer.current = null; setPlayer(null); setRoom(null); setSelected(null); setError("");
+ }
+ async function act(action: GameAction) {
+  if (!player || !room || pending.current) return;
+  const side = player;
+  pending.current = true; setBusy(true); setError("");
+  try {
+   const response = await fetch("/api/room", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ player, round: room.round, action }) });
+   const data = await response.json() as RoomView & { error?: string };
+   if (!response.ok) throw new Error(data.error || "Não foi possível atualizar a sala.");
+   if (activePlayer.current === side) { updateRoom(data); setSelected(null); }
+  } catch (error) { if (activePlayer.current === side) setError(error instanceof Error ? error.message : "Falha de conexão. Tente novamente."); }
+  finally { pending.current = false; setBusy(false); }
+ }
+ const own = room?.fields.find(field => field.player === player);
+ const filled = room?.ownSlots.filter(Boolean).length ?? 0;
+ const locked = busy || !room || !!own?.ready;
  return <main>
-  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.2</p>
+  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.3</p>
   {!player ? <section aria-label="Escolher jogador">
    <p>Escolha seu jogador para entrar na sala.</p>
-   <div className="buttons"><button onClick={() => setPlayer(1)}>Player 1</button><button onClick={() => setPlayer(2)}>Player 2</button></div>
+   <div className="buttons"><button onClick={() => enter(1)}>Player 1</button><button onClick={() => enter(2)}>Player 2</button></div>
   </section> : <section aria-label="Sala compartilhada">
-   <div className="room-header"><h2>Sala única · Player {player}</h2><button className="secondary" onClick={() => { setPlayer(null); setMessages([]); setError(""); }}>Sair</button></div>
+   <div className="room-header"><h2>Sala única · Player {player}</h2><button className="secondary" disabled={busy} onClick={leave}>Sair</button></div>
    <p className="status" role="status">{status}</p>
-   <div className="battlefield" aria-label="Campo de batalha">
-    <h3>Campo de batalha</h3>
-    <div className="board-scroll" tabIndex={0} role="region" aria-label="Slots dos dois jogadores">
-     <div className="board">
-      {[player === 1 ? 2 : 1, player].map((side, row) => <div className="player-field" key={side}>
-       <p className="field-label">Player {side} · {row === 0 ? "Oponente" : "Você"}</p>
-       <div className="slot-row" role="group" aria-label={`Campo do Player ${side}`}>
-        {[1, 2, 3, 4, 5].map(slot => <div className="card-slot" key={slot} aria-label={`Player ${side}, slot ${slot}`}>
-         <span>Slot {slot}</span>
-        </div>)}
-       </div>
-      </div>)}
+   {room && <>
+    <p className={"phase " + (room.revealed ? "revealed" : "")} role="status">
+     {room.revealed ? "Ambos prontos. Cartas reveladas!" : own?.ready ? "Você está pronto. Aguardando o oponente…" : "Escolha 5 cartas e coloque uma em cada slot."}
+    </p>
+    <div className="battlefield" aria-label="Campo de batalha">
+     <h3>Campo de batalha</h3>
+     <div className="board-scroll" tabIndex={0} role="region" aria-label="Slots dos dois jogadores">
+      <div className="board">
+       {([player === 1 ? 2 : 1, player] as Player[]).map(side => {
+        const field = room.fields.find(item => item.player === side)!;
+        return <div className={"player-field player-" + side} key={side}>
+         <p className="field-label">Player {side} · {side === player ? "Você" : "Oponente"} <span className="field-status">{field.slots.filter(Boolean).length}/5 · {field.ready ? "Pronto" : "Preparando"}</span></p>
+         <div className="slot-row" role="group" aria-label={"Campo do Player " + side}>
+          {field.slots.map((card, slot) => {
+           const label = "Player " + side + ", slot " + (slot + 1);
+           const content = <><span className="slot-number">Slot {slot + 1}</span><span className="card-face">{card === null ? "Vazio" : room.revealed ? card : "Virada"}</span></>;
+           const className = "card-slot " + (card ? room.revealed ? "face-up" : "face-down" : "empty-slot");
+           return side === player ? <button key={slot} className={className} disabled={locked || (!selected && !card)} aria-label={label + (card ? room.revealed ? ", carta " + card : ", carta virada" : ", vazio")} onClick={() => act({ type: "place", slot, card: selected })}>{content}</button>
+            : <div key={slot} className={className} aria-label={label + (card ? room.revealed ? ", carta " + card : ", carta virada" : ", vazio")}>{content}</div>;
+          })}
+         </div>
+        </div>;
+       })}
+      </div>
      </div>
     </div>
-   </div>
-   <div className="messages" role="log" aria-label="Mensagens da sala" aria-live="polite" aria-relevant="additions">
-    {messages.length === 0 ? <p className="empty">As mensagens dos dois jogadores aparecerão aqui.</p> : messages.map(message => <p key={message.id}><span className="sender">Player {message.player}</span>{message.text}</p>)}
-    <div ref={bottom} />
-   </div>
-   <button disabled={sending} onClick={send}>{sending ? "Enviando…" : player === 1 ? "Enviar Hello World 1" : "Enviar Hello world 2"}</button>
+    {!room.revealed && <div className={"hand player-" + player} aria-label="Sua mão">
+     <h3>Sua mão <span className="field-status">{10 - filled} disponíveis</span></h3>
+     <p className="hint">{own?.ready ? "Suas cartas estão travadas até a revelação." : selected ? "Carta " + selected + " selecionada. Clique no slot de destino." : "Clique em uma carta e depois em um slot. Para retirar, clique em um slot ocupado sem carta selecionada."}</p>
+     <div className="hand-cards">
+      {cardsFor(player).map(card => {
+       const slot = room.ownSlots.indexOf(card);
+       return <button key={card} className={"hand-card " + (selected === card ? "selected" : "")} disabled={locked || slot !== -1} aria-pressed={selected === card} aria-label={"Carta " + card + (slot !== -1 ? ", no slot " + (slot + 1) : "")} onClick={() => setSelected(selected === card ? null : card)}>
+        <span>{card}</span>{slot !== -1 && <small>Slot {slot + 1}</small>}
+       </button>;
+      })}
+     </div>
+    </div>}
+    <div className="actions">
+     {!room.revealed && !own?.ready && filled === 5 && <button className="ready-button" disabled={busy} onClick={() => act({ type: "ready" })}>{busy ? "Salvando…" : "Pronto"}</button>}
+     {!room.revealed && !own?.ready && filled < 5 && <p className="hint">Preencha os 5 slots para ficar pronto. ({filled}/5)</p>}
+     {room.revealed && <button className="secondary" disabled={busy} onClick={() => act({ type: "reset" })}>Nova rodada</button>}
+    </div>
+   </>}
    {error && <p className="error" role="alert">{error}</p>}
   </section>}
  </main>;

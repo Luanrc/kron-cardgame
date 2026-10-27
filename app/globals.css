@@ -1,29 +1,49 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: #f5f5f5; color: #222; font: 16px/1.5 Arial, sans-serif; }
-main { width: min(100% - 32px, 960px); margin: 32px auto; }
+main { width: min(100% - 32px, 960px); margin: 24px auto; }
 h1 { margin: 0; font-size: 26px; }
 h2 { margin: 0; font-size: 18px; }
-.subtitle { margin: 4px 0 28px; color: #666; }
+h3 { font-size: 16px; margin: 0 0 12px; }
+.subtitle { margin: 4px 0 20px; color: #666; }
 section { background: white; border: 1px solid #ccc; padding: 24px; border-radius: 6px; }
 .buttons, .room-header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .room-header { justify-content: space-between; }
 button { padding: 12px 20px; border: 1px solid #222; border-radius: 4px; background: #222; color: white; cursor: pointer; font: inherit; }
-button:hover { background: #444; }
-button:focus-visible { outline: 3px solid #3677c9; outline-offset: 3px; }
-button:disabled { opacity: .6; cursor: wait; }
+button:hover:not(:disabled) { background: #444; }
+button:focus-visible, .board-scroll:focus-visible { outline: 3px solid #3677c9; outline-offset: 3px; }
+button:disabled { cursor: default; }
 button.secondary { background: white; color: #333; padding: 6px 12px; border-color: #aaa; }
-.status, .empty { color: #666; font-size: 14px; }
-.messages { height: 140px; overflow-y: auto; border: 1px solid #ddd; padding: 12px; margin: 20px 0; overflow-wrap: anywhere; }
-.messages p { padding: 8px 0; margin: 0; border-bottom: 1px solid #eee; }
-.sender { display: block; color: #666; font-size: 12px; }
+button.secondary:hover:not(:disabled) { background: #eee; }
+button.secondary:disabled, .ready-button:disabled { opacity: .6; }
+.status, .hint { color: #666; font-size: 14px; }
+.phase { padding: 10px 12px; background: #f1f4f6; border-left: 3px solid #789; font-size: 14px; }
+.phase.revealed { border-color: #328254; background: #edf6ef; }
 .error { color: #a40000; }
-.battlefield { margin-top: 24px; }
-.battlefield h3 { font-size: 16px; margin: 0 0 12px; }
+.battlefield { margin-top: 20px; }
 .board-scroll { overflow-x: auto; border: 1px solid #ccc; background: #fafafa; }
-.board-scroll:focus-visible { outline: 3px solid #3677c9; outline-offset: 3px; }
 .board { min-width: 460px; padding: 16px; }
-.player-field + .player-field { border-top: 1px solid #ccc; margin-top: 24px; padding-top: 20px; }
+.player-field + .player-field { border-top: 1px solid #ccc; margin-top: 18px; padding-top: 16px; }
 .field-label { margin: 0 0 10px; font-size: 14px; font-weight: bold; }
-.slot-row { display: grid; grid-template-columns: repeat(5, minmax(0, 100px)); justify-content: space-between; gap: 12px; }
-.card-slot { aspect-ratio: 2 / 3; display: flex; align-items: center; justify-content: center; border: 2px solid #999; background: white; color: #666; font-size: 14px; }
-@media (max-width: 420px) { main { margin-top: 24px; } section { padding: 16px; } }
+.field-status { margin-left: 8px; color: #666; font-size: 12px; font-weight: normal; }
+.slot-row { display: grid; grid-template-columns: repeat(5, minmax(0, 88px)); justify-content: space-between; gap: 12px; }
+.card-slot { aspect-ratio: 2 / 3; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; border: 2px solid #aaa; border-radius: 3px; padding: 4px; background: white; color: #666; font-size: 14px; }
+.slot-number { font-size: 11px; font-weight: normal; }
+.card-face { font-size: 14px; }
+.player-1 { --accent: #356c9b; --pale: #eaf1f8; }
+.player-2 { --accent: #966b26; --pale: #faf2e4; }
+.card-slot.face-down { background: #e8ebee; border: 3px solid var(--accent); color: #555; }
+.card-slot.face-up { background: var(--pale); border: 3px solid var(--accent); color: #222; }
+.card-slot.face-up .card-face { font-size: 30px; font-weight: bold; }
+button.card-slot:hover:not(:disabled) { background: var(--pale); border-color: var(--accent); color: #222; }
+.hand { margin-top: 20px; }
+.hand-cards { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 8px; }
+.hand-card { min-height: 78px; padding: 6px; background: white; color: #222; border: 2px solid var(--accent); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 22px; }
+.hand-card small { font-size: 10px; color: #666; }
+.hand-card.selected { outline: 2px solid var(--accent); outline-offset: 2px; background: var(--pale); }
+.hand-card:hover:not(:disabled) { background: var(--pale); }
+.hand-card:disabled { border-color: #ccc; background: #f1f1f1; color: #888; }
+.actions { margin-top: 18px; }
+.ready-button { background: #2f6948; border-color: #2f6948; }
+.ready-button:hover:not(:disabled) { background: #235638; }
+@media (max-width: 600px) { .hand-cards { grid-template-columns: repeat(5, minmax(0, 1fr)); } .field-status { display: inline-block; } }
+@media (max-width: 420px) { section { padding: 16px; } }
