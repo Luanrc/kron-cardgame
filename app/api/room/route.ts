@@ -12,8 +12,9 @@ async function readRoom() {
  return room;
 }
 export async function GET(request: Request) {
- const player = Number(new URL(request.url).searchParams.get("player"));
- if (player !== 1 && player !== 2) return reply({ error: "Jogador inválido." }, 400);
+ const value = new URL(request.url).searchParams.get("player");
+ const player = value === "spectator" ? "spectator" : Number(value);
+ if (player !== 1 && player !== 2 && player !== "spectator") return reply({ error: "Jogador inválido." }, 400);
  try {
   const room = await readRoom();
   return reply(roomView(JSON.parse(room.state) as GameState, player, room.version));
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
   if (raw.length > 2048) return reply({ error: "Pedido muito grande." }, 413);
   let input;
   try { input = JSON.parse(raw); } catch { return reply({ error: "JSON inválido." }, 400); }
+  if (input?.player === "spectator") return reply({ error: "Espectadores só podem assistir." }, 403);
   if (!input || (input.player !== 1 && input.player !== 2) || !Number.isInteger(input.round) || !input.action || !["place", "ready", "reset"].includes(input.action.type)) return reply({ error: "Pedido inválido." }, 400);
   const player: Player = input.player;
   for (let attempt = 0; attempt < 6; attempt++) {

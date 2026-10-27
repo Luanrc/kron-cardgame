@@ -1,16 +1,16 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { cardsFor, type GameAction, type Player, type RoomView } from "../lib/game";
+import { cardsFor, type GameAction, type Player, type Viewer, type RoomView } from "../lib/game";
 
 export default function Home() {
- const [player, setPlayer] = useState<Player | null>(null);
+ const [player, setPlayer] = useState<Viewer | null>(null);
  const [room, setRoom] = useState<RoomView | null>(null);
  const [selected, setSelected] = useState<string | null>(null);
  const [status, setStatus] = useState("Conectando…");
  const [busy, setBusy] = useState(false);
  const [error, setError] = useState("");
  const pending = useRef(false);
- const activePlayer = useRef<Player | null>(null);
+ const activePlayer = useRef<Viewer | null>(null);
  const updateRoom = (next: RoomView) => setRoom(previous => !previous || next.version >= previous.version ? next : previous);
 
  useEffect(() => {
@@ -33,14 +33,14 @@ export default function Home() {
 
  useEffect(() => { setSelected(null); setError(""); }, [room?.round]);
 
- function enter(side: Player) {
+ function enter(side: Viewer) {
   activePlayer.current = side; setPlayer(side); setRoom(null); setSelected(null); setError(""); setStatus("Conectando…");
  }
  function leave() {
   activePlayer.current = null; setPlayer(null); setRoom(null); setSelected(null); setError("");
  }
  async function act(action: GameAction) {
-  if (!player || !room || pending.current) return;
+  if (!player || player === "spectator" || !room || pending.current) return;
   const side = player;
   pending.current = true; setBusy(true); setError("");
   try {
@@ -55,25 +55,25 @@ export default function Home() {
  const filled = room?.ownSlots.filter(Boolean).length ?? 0;
  const locked = busy || !room || !!own?.ready;
  return <main>
-  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.3</p>
+  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.4</p>
   {!player ? <section aria-label="Escolher jogador">
-   <p>Escolha seu jogador para entrar na sala.</p>
-   <div className="buttons"><button onClick={() => enter(1)}>Player 1</button><button onClick={() => enter(2)}>Player 2</button></div>
+   <p>Escolha como entrar na sala.</p>
+   <div className="buttons"><button onClick={() => enter(1)}>Player 1</button><button onClick={() => enter(2)}>Player 2</button><button className="secondary" onClick={() => enter("spectator")}>Espectador</button></div>
   </section> : <section aria-label="Sala compartilhada">
-   <div className="room-header"><h2>Sala única · Player {player}</h2><button className="secondary" disabled={busy} onClick={leave}>Sair</button></div>
+   <div className="room-header"><h2>Sala única · {player === "spectator" ? "Espectador" : "Player " + player}</h2><button className="secondary" disabled={busy} onClick={leave}>Sair</button></div>
    <p className="status" role="status">{status}</p>
    {room && <>
     <p className={"phase " + (room.revealed ? "revealed" : "")} role="status">
-     {room.revealed ? "Ambos prontos. Cartas reveladas!" : own?.ready ? "Você está pronto. Aguardando o oponente…" : "Escolha 5 cartas e coloque uma em cada slot."}
+     {room.revealed ? "Ambos prontos. Cartas reveladas!" : player === "spectator" ? "Assistindo à preparação. As cartas serão reveladas quando ambos estiverem prontos." : own?.ready ? "Você está pronto. Aguardando o oponente…" : "Escolha 5 cartas e coloque uma em cada slot."}
     </p>
     <div className="battlefield" aria-label="Campo de batalha">
      <h3>Campo de batalha</h3>
      <div className="board-scroll" tabIndex={0} role="region" aria-label="Slots dos dois jogadores">
       <div className="board">
-       {([player === 1 ? 2 : 1, player] as Player[]).map(side => {
+       {(player === "spectator" ? [2, 1] as Player[] : [player === 1 ? 2 : 1, player] as Player[]).map(side => {
         const field = room.fields.find(item => item.player === side)!;
         return <div className={"player-field player-" + side} key={side}>
-         <p className="field-label">Player {side} · {side === player ? "Você" : "Oponente"} <span className="field-status">{field.slots.filter(Boolean).length}/5 · {field.ready ? "Pronto" : "Preparando"}</span></p>
+         <p className="field-label">Player {side}{player !== "spectator" && (side === player ? " · Você" : " · Oponente")} <span className="field-status">{field.slots.filter(Boolean).length}/5 · {field.ready ? "Pronto" : "Preparando"}</span></p>
          <div className="slot-row" role="group" aria-label={"Campo do Player " + side}>
           {field.slots.map((card, slot) => {
            const label = "Player " + side + ", slot " + (slot + 1);
@@ -88,7 +88,7 @@ export default function Home() {
       </div>
      </div>
     </div>
-    {!room.revealed && <div className={"hand player-" + player} aria-label="Sua mão">
+    {player !== "spectator" && !room.revealed && <div className={"hand player-" + player} aria-label="Sua mão">
      <h3>Sua mão <span className="field-status">{10 - filled} disponíveis</span></h3>
      <p className="hint">{own?.ready ? "Suas cartas estão travadas até a revelação." : selected ? "Carta " + selected + " selecionada. Clique no slot de destino." : "Clique em uma carta e depois em um slot. Para retirar, clique em um slot ocupado sem carta selecionada."}</p>
      <div className="hand-cards">
@@ -100,11 +100,11 @@ export default function Home() {
       })}
      </div>
     </div>}
-    <div className="actions">
+    {player !== "spectator" && <div className="actions">
      {!room.revealed && !own?.ready && filled === 5 && <button className="ready-button" disabled={busy} onClick={() => act({ type: "ready" })}>{busy ? "Salvando…" : "Pronto"}</button>}
      {!room.revealed && !own?.ready && filled < 5 && <p className="hint">Preencha os 5 slots para ficar pronto. ({filled}/5)</p>}
      {room.revealed && <button className="secondary" disabled={busy} onClick={() => act({ type: "reset" })}>Nova rodada</button>}
-    </div>
+    </div>}
    </>}
    {error && <p className="error" role="alert">{error}</p>}
   </section>}

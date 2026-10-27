@@ -31,6 +31,12 @@ assert.deepEqual(one.ownSlots, ["1", "2", "3", "4", "5"]);
 assert.deepEqual(two.ownSlots, ["A", "B", "C", "D", "E"]);
 assert.deepEqual(one.fields[1].slots, Array(5).fill("hidden"));
 assert.deepEqual(two.fields[0].slots, Array(5).fill("hidden"));
+const spectator = await read("spectator");
+assert.deepEqual(spectator.ownSlots, []);
+assert.ok(spectator.fields.every(field => field.slots.every(card => card === "hidden")));
+for (const action of [{ type: "ready" }, { type: "place", slot: 0, card: "1" }, { type: "reset" }]) {
+ await act("spectator", action, 403);
+}
 await act(1, { type: "ready" });
 await act(1, { type: "place", slot: 0, card: "6" }, 400);
 assert.equal((await read(2)).revealed, false);
@@ -39,9 +45,10 @@ one = await read(1);
 two = await read(2);
 assert.ok(one.revealed && two.revealed);
 assert.deepEqual(one.fields, two.fields);
+assert.deepEqual((await read("spectator")).fields, one.fields);
 assert.deepEqual(one.fields[1].slots, ["A", "B", "C", "D", "E"]);
 const reset = await act(1, { type: "reset" });
 assert.equal(reset.round, round + 1);
 assert.ok(reset.fields.every(field => !field.ready && field.slots.every(card => card === null)));
 await act(2, { type: "ready" }, 409, round);
-console.log("Passed: concurrent placements, validation, hidden opponent cards, ready locking, shared reveal, reset and stale-round rejection.");
+console.log("Passed: concurrent placements, validation, hidden cards, spectator read-only view, ready locking, shared reveal, reset and stale-round rejection.");

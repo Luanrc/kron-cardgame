@@ -1,4 +1,5 @@
 export type Player = 1 | 2;
+export type Viewer = Player | "spectator";
 export type Slots = (string | null)[];
 export type GameState = { round: number; slots: Record<Player, Slots>; ready: Record<Player, boolean> };
 export type GameAction = { type: "place"; slot: number; card: string | null } | { type: "ready" } | { type: "reset" };
@@ -9,6 +10,7 @@ export const newGame = (round = 1): GameState => ({ round, slots: { 1: Array(5).
 export const isRevealed = (state: GameState) => state.ready[1] && state.ready[2];
 
 export function applyAction(state: GameState, player: Player, action: GameAction): GameState {
+ if (player !== 1 && player !== 2) throw new Error("Espectadores só podem assistir.");
  if (action.type === "reset") {
   if (!isRevealed(state)) throw new Error("A rodada ainda não terminou.");
   return newGame(state.round + 1);
@@ -27,10 +29,10 @@ export function applyAction(state: GameState, player: Player, action: GameAction
  return next;
 }
 
-export function roomView(state: GameState, player: Player, version: number): RoomView {
+export function roomView(state: GameState, player: Viewer, version: number): RoomView {
  const revealed = isRevealed(state);
  return {
-  version, round: state.round, revealed, ownSlots: state.slots[player],
+  version, round: state.round, revealed, ownSlots: player === "spectator" ? [] : state.slots[player],
   fields: ([1, 2] as Player[]).map(side => ({
    player: side, ready: state.ready[side],
    slots: state.slots[side].map(card => card === null ? null : revealed ? card : "hidden"),

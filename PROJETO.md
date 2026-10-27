@@ -1,6 +1,8 @@
 # Kron Card Game
 
-Protótipo 0.3 de um cardgame online 1v1. Este diretório é o projeto do game; não confundir com Kron RPG.
+Protótipo 0.4 de um cardgame online 1v1. Este diretório é o projeto do game; não confundir com Kron RPG.
+
+Entrada Espectador: acompanha a mesma sala, com Player 2 em cima e Player 1 embaixo. Não recebe mão e não tem ações de jogo, Pronto ou Nova rodada. Vê cartas viradas para baixo até ambos estarem prontos; depois vê os valores revelados. A API também omite mãos da visão de espectador e rejeita ações enviadas nessa função. Atualiza a cada segundo como os jogadores.
 
 Campo de batalha: cinco slots por jogador, em duas fileiras com as mesmas cinco colunas. Slot 1 fica diante do slot 1, até 5. O jogador local aparece embaixo; o oponente, em cima. Em telas estreitas, o campo rola horizontalmente sem quebrar o alinhamento.
 

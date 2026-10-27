@@ -4,6 +4,23 @@ import { newGame, applyAction, roomView, cardsFor } from "../lib/game.ts";
 function fill(state, player) {
  return cardsFor(player).slice(0,5).reduce((s, card, slot) => applyAction(s, player, {type:"place",slot,card}), state);
 }
+test("spectator sees no hand or concealed card identities and cannot change the round", () => {
+ let s = fill(fill(newGame(),1),2);
+ let view = roomView(s,"spectator",0);
+ assert.deepEqual(view.ownSlots,[]);
+ assert.ok(view.fields.every(field => field.slots.every(card => card === "hidden")));
+ s = applyAction(s,1,{type:"ready"});
+ assert.equal(roomView(s,"spectator",1).revealed,false);
+ assert.throws(() => applyAction(s,"spectator",{type:"ready"}));
+ assert.throws(() => applyAction(s,"spectator",{type:"place",slot:0,card:"1"}));
+ s = applyAction(s,2,{type:"ready"});
+ assert.throws(() => applyAction(s,"spectator",{type:"reset"}));
+ view = roomView(s,"spectator",2);
+ assert.equal(view.revealed,true);
+ assert.deepEqual(view.fields[0].slots,["1","2","3","4","5"]);
+ assert.deepEqual(view.fields[1].slots,["A","B","C","D","E"]);
+ assert.deepEqual(view.ownSlots,[]);
+});
 test("hands have exactly the requested identities; invalid and duplicate placements fail", () => {
  assert.deepEqual(cardsFor(1), ["1","2","3","4","5","6","7","8","9","10"]);
  assert.deepEqual(cardsFor(2), ["A","B","C","D","E","F","G","H","I","J"]);
