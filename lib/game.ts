@@ -1,4 +1,4 @@
-import { deckFor, definitionFor, isMandatoryCard, nextAvailableRound, isDeckId, classNameFor, type DeckId } from "./cards.ts";
+import { deckFor, definitionFor, isMandatoryCard, nextAvailableRound, isDeckId, classNameFor, initialLifeFor, type DeckId } from "./cards.ts";
 import { INITIAL_LIFE, resolveBattle, resultFor, type Life, type MatchResult, type SlotResolution } from "./battle.ts";
 import { emptySlotCounters, emptyFloating, validateTargets, type SlotCounters, type FloatingState } from "./targeting.ts";
 import { emptyHolyPower, emptyHolySpending, potentialHolyPower, validateHolySpending, type HolyPower, type HolySpending } from "./holy-power.ts";
@@ -12,7 +12,7 @@ export type GameState = { lobbyReset: number; holyPower: HolyPower; holySpending
 export type GameAction = { type: "holy_spend"; card: string; amount: number } | { type: "aim"; card: string; targets: number[] } | { type: "select_deck"; deck: DeckId } | { type: "place"; slot: number; card: string | null } | { type: "ready" } | { type: "reset" } | { type: "restart" };
 export type FieldView = { player: Player; slots: (string | null)[]; ready: boolean };
 export type FatigueView = { player: Player; cards: { card: string; remainingRounds: number; availableRound: number }[] };
-export type RoomView = { lobbyReset: number; holyPower: HolyPower; holySpending: HolySpending; bleeding: SlotCounters; bleedingRound: number; floating: FloatingState; decks: Record<Player, DeckId>; version: number; match: number; round: number; initialLife: number; life: Life; result: MatchResult; battle: SlotResolution[]; revealed: boolean; ownSlots: Slots; fields: FieldView[]; fatigue: FatigueView[] };
+export type RoomView = { lobbyReset: number; holyPower: HolyPower; holySpending: HolySpending; bleeding: SlotCounters; bleedingRound: number; floating: FloatingState; decks: Record<Player, DeckId>; version: number; match: number; round: number; initialLife: Life; life: Life; result: MatchResult; battle: SlotResolution[]; revealed: boolean; ownSlots: Slots; fields: FieldView[]; fatigue: FatigueView[] };
 const players: Player[] = [1, 2];
 export const cardsFor = (player: Player, deck: DeckId = "warrior") => deckFor(player, deck).map(card => card.instanceId);
 export const requiredCardsFor = (player: Player, deck: DeckId = "warrior") => cardsFor(player, deck).filter(card => isMandatoryCard(definitionFor(player, card)!));
@@ -50,7 +50,7 @@ function removeRecoveredCards(state: GameState) {
 // Upgrade saved rounds without erasing the field or requiring a database migration.
 export function normalizeGameState(input: Pick<GameState, "round" | "slots" | "ready"> & Partial<Omit<GameState, "round" | "slots" | "ready">>): GameState {
  const legacy = !input.fatigue;
- const life = structuredClone(input.life ?? { 1: INITIAL_LIFE, 2: INITIAL_LIFE });
+ const life = structuredClone(input.life ?? { 1: initialLifeFor(input.decks?.[1] ?? "warrior"), 2: initialLifeFor(input.decks?.[2] ?? "warrior") });
  const state: GameState = { ...structuredClone(input), lobbyReset: input.lobbyReset ?? 0, holyPower: structuredClone(input.holyPower ?? emptyHolyPower()), holySpending: structuredClone(input.holySpending ?? emptyHolySpending()), bleeding: structuredClone(input.bleeding ?? emptySlotCounters()), floating: structuredClone(input.floating ?? emptyFloating()), decks: structuredClone(input.decks ?? { 1: "warrior", 2: "warrior" }), match: input.match ?? 1, fatigue: structuredClone(input.fatigue ?? { 1: {}, 2: {} }), life, result: input.result ?? resultFor(life), battle: structuredClone(input.battle ?? []) };
  if (legacy) {
   if (isRevealed(state)) registerFatigue(state);
@@ -68,13 +68,14 @@ export function applyAction(input: GameState, player: Player, action: GameAction
  if (action.type === "select_deck") {
   if (!isDeckId(action.deck)) throw new Error("Baralho inválido.");
   if (state.decks[player] === action.deck) return state;
-  if (state.round !== 1 || state.result || state.battle.length || state.ready[player] || state.slots[player].some(Boolean) || players.some(side => state.life[side] !== INITIAL_LIFE)) throw new Error("O baralho só pode ser trocado no início da partida, antes de colocar suas cartas. Para continuar, selecione " + classNameFor(state.decks[player]) + ".");
+  if (state.round !== 1 || state.result || state.battle.length || state.ready[player] || state.slots[player].some(Boolean) || players.some(side => state.life[side] !== initialLifeFor(state.decks[side]))) throw new Error("O baralho só pode ser trocado no início da partida, antes de colocar suas cartas. Para continuar, selecione " + classNameFor(state.decks[player]) + ".");
   state.decks[player] = action.deck;
+  state.life[player] = initialLifeFor(action.deck);
   return state;
  }
  if (action.type === "restart") {
   if (!state.result) throw new Error("A partida ainda não terminou.");
-  return { ...newGame(1, state.match + 1), lobbyReset: state.lobbyReset, decks: structuredClone(state.decks) };
+  return { ...newGame(1, state.match + 1), lobbyReset: state.lobbyReset, decks: structuredClone(state.decks), life: { 1: initialLifeFor(state.decks[1]), 2: initialLifeFor(state.decks[2]) } };
  }
  if (state.result) throw new Error("A partida terminou. Inicie uma nova partida.");
  if (action.type === "reset") {
@@ -151,7 +152,7 @@ export function roomView(input: GameState, player: Viewer, version: number): Roo
   floating: { 1: revealed || player === 1 ? state.floating[1] : {}, 2: revealed || player === 2 ? state.floating[2] : {} },
   holyPower: state.holyPower, lobbyReset: state.lobbyReset,
   holySpending: { 1: revealed || player === 1 ? state.holySpending[1] : {}, 2: revealed || player === 2 ? state.holySpending[2] : {} },
-  decks: state.decks, version, match: state.match, round: state.round, initialLife: INITIAL_LIFE, life: state.life, result: state.result, battle: revealed ? state.battle : [], revealed, ownSlots: player === "spectator" ? [] : state.slots[player],
+  decks: state.decks, version, match: state.match, round: state.round, initialLife: { 1: initialLifeFor(state.decks[1]), 2: initialLifeFor(state.decks[2]) }, life: state.life, result: state.result, battle: revealed ? state.battle : [], revealed, ownSlots: player === "spectator" ? [] : state.slots[player],
   fields: players.map(side => ({
    player: side, ready: state.ready[side],
    slots: state.slots[side].map(card => card === null ? null : revealed ? card : "hidden"),

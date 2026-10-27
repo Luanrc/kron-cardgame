@@ -22,7 +22,7 @@ button.secondary:disabled, .ready-button:disabled, .enter-room:disabled { opacit
 .error { color: #f1a4a4; }
 .status, .hint { color: var(--muted); font-size: 13px; }
 .deck-warrior { --deck-color: #754a2d; --accent: #bd9272; --pale: #37322f; }
-.deck-monk { --deck-color: #49a58c; --accent: #76bea8; --pale: #2b3a37; }
+.deck-monk { --deck-color: #58cbbb; --accent: #86d8ce; --pale: #2b3b3b; }
 .deck-rogue { --deck-color: #f0e580; --accent: #d4cb80; --pale: #383a30; }
 .deck-paladin { --deck-color: #e492e2; --accent: #d39bd2; --pale: #3a3240; }
 .deck-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 14px; }

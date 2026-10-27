@@ -6,6 +6,7 @@ export const deckOptions: readonly { id: DeckId; name: string; description: stri
  { id: "rogue", name: "Ladino", description: "Sangramento deixa dano para a próxima rodada. Flutuando permite escolher os slots atingidos dentro do alcance da carta." },
  { id: "paladin", name: "Paladino", description: "Acumula Poder Sagrado com ataques e defesas bem-sucedidos. Escolha quanto gastar para fortalecer uma carta com X por rodada." },
 ];
+export const initialLifeFor = (id: DeckId): number => ({ warrior: 10, monk: 10, rogue: 9, paladin: 12 })[id];
 export const classNameFor = (id: DeckId) => deckOptions.find(deck => deck.id === id)!.name;
 export const isDeckId = (value: unknown): value is DeckId => deckOptions.some(deck => deck.id === value);
 
