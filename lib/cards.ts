@@ -1,8 +1,9 @@
 import type { Player } from "./game";
-export type DeckId = "warrior" | "monk";
+export type DeckId = "warrior" | "monk" | "rogue";
 export const deckOptions: readonly { id: DeckId; name: string; description: string }[] = [
  { id: "warrior", name: "Guerreiro", description: "Dano, defesa, Atordoamento e Ripostar." },
  { id: "monk", name: "Monge", description: "Defesa, Ripostar, Defletir e Refletir." },
+ { id: "rogue", name: "Ladino", description: "Sangramento, Flutuando e Atordoamento." },
 ];
 export const classNameFor = (id: DeckId) => deckOptions.find(deck => deck.id === id)!.name;
 export const isDeckId = (value: unknown): value is DeckId => deckOptions.some(deck => deck.id === value);
@@ -23,6 +24,8 @@ export type CardDefinition = {
  effects: readonly CardEffect[];
  damageCondition?: "opponent_deals_damage";
  nextSlotCondition?: "riposte_triggered";
+ bleeding?: { amount: number; doubleAfterAdding?: boolean };
+ floating?: { effect: "damage" | "bleeding"; range: number; points: number };
  fatigue?: { rounds: number; reference: "round_placed_and_revealed" };
 };
 export type DeckCard = { instanceId: string; definitionId: string };
@@ -69,15 +72,28 @@ export const monkCards: readonly CardDefinition[] = [
  { id: "monk-10", classId: "monk", number: 10, text: { main: ["Ripostar: +2 dano", "Se ativar: +4 def no próximo slot"], footer: ["(Fadiga 2)"] }, effects: [{ kind: "damage", amount: 2, slot: "current" }, { kind: "defense", amount: 4, slot: "next" }], damageCondition: "opponent_deals_damage", nextSlotCondition: "riposte_triggered", fatigue: { rounds: 2, reference: "round_placed_and_revealed" } },
 ];
 
-const catalog = { warrior: warriorCards, monk: monkCards };
-const definitions = new Map([...warriorCards, ...monkCards].map(card => [card.id, card]));
+export const rogueCards: readonly CardDefinition[] = [
+ { id: "rogue-01", classId: "rogue", number: 1, text: { main: ["Não age"], footer: [] }, effects: [{ kind: "no_action" }] },
+ { id: "rogue-02", classId: "rogue", number: 2, text: { main: ["Não age"], footer: [] }, effects: [{ kind: "no_action" }] },
+ { id: "rogue-03", classId: "rogue", number: 3, text: { main: ["+1 dano"], footer: ["Sangramento"] }, effects: [{ kind: "damage", amount: 1, slot: "current" }], bleeding: { amount: 1 } },
+ { id: "rogue-04", classId: "rogue", number: 4, text: { main: ["+1 dano"], footer: ["Sangramento"] }, effects: [{ kind: "damage", amount: 1, slot: "current" }], bleeding: { amount: 1 } },
+ { id: "rogue-05", classId: "rogue", number: 5, text: { main: ["+1 def"], footer: [] }, effects: [{ kind: "defense", amount: 1, slot: "current" }] },
+ { id: "rogue-06", classId: "rogue", number: 6, text: { main: ["Atordoamento"], footer: ["(Fadiga 1)"] }, effects: [{ kind: "stun", target: "opposing_card_same_slot" }], fatigue: { rounds: 1, reference: "round_placed_and_revealed" } },
+ { id: "rogue-07", classId: "rogue", number: 7, text: { main: ["+1 dano → +1 dano"], footer: ["Sangramento só no slot atual", "(Fadiga 1)"] }, effects: [{ kind: "damage", amount: 1, slot: "current" }, { kind: "damage", amount: 1, slot: "next" }], bleeding: { amount: 1 }, fatigue: { rounds: 1, reference: "round_placed_and_revealed" } },
+ { id: "rogue-08", classId: "rogue", number: 8, text: { main: ["+1 def → +1 def"], footer: ["(Fadiga 2)"] }, effects: [{ kind: "defense", amount: 1, slot: "current" }, { kind: "defense", amount: 1, slot: "next" }], fatigue: { rounds: 2, reference: "round_placed_and_revealed" } },
+ { id: "rogue-09", classId: "rogue", number: 9, text: { main: ["+2 dano"], footer: ["Flutuando 1", "Divida o dano entre slots ao alcance."] }, effects: [{ kind: "damage", amount: 2, slot: "current" }], floating: { effect: "damage", range: 1, points: 2 } },
+ { id: "rogue-10", classId: "rogue", number: 10, text: { main: ["+1 dano"], footer: ["Sangramento · Flutuando 3", "Adiciona 1 marcador e dobra os do destino.", "(Fadiga 2)"] }, effects: [{ kind: "damage", amount: 1, slot: "current" }], bleeding: { amount: 1, doubleAfterAdding: true }, floating: { effect: "bleeding", range: 3, points: 1 }, fatigue: { rounds: 2, reference: "round_placed_and_revealed" } },
+];
+
+const catalog = { warrior: warriorCards, monk: monkCards, rogue: rogueCards };
+const definitions = new Map(Object.values(catalog).flat().map(card => [card.id, card]));
 for (const cards of Object.values(catalog)) validateDeck(cards);
 const warriorDecks: Record<Player, readonly DeckCard[]> = {
  // Keep existing instance IDs so rounds already saved on the server survive.
  1: warriorCards.map((card, index) => ({ instanceId: String(index + 1), definitionId: card.id })),
  2: warriorCards.map((card, index) => ({ instanceId: String.fromCharCode(65 + index), definitionId: card.id })),
 };
-export const deckFor = (player: Player, deck: DeckId = "warrior"): readonly DeckCard[] => deck === "warrior" ? warriorDecks[player] : monkCards.map(card => ({ instanceId: `monk-${player}-${card.number}`, definitionId: card.id }));
+export const deckFor = (player: Player, deck: DeckId = "warrior"): readonly DeckCard[] => deck === "warrior" ? warriorDecks[player] : catalog[deck].map(card => ({ instanceId: `${deck}-${player}-${card.number}`, definitionId: card.id }));
 export function definitionFor(player: Player, instanceId: string): CardDefinition | undefined {
  const instance = deckOptions.flatMap(deck => deckFor(player, deck.id)).find(card => card.instanceId === instanceId);
  return instance ? definitions.get(instance.definitionId) : undefined;

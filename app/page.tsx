@@ -6,6 +6,7 @@ import { CardText } from "../components/card-text";
 import { definitionFor, cardDescription, isMandatoryCard, deckOptions, classNameFor, type DeckId } from "../lib/cards";
 import { FatiguePanel } from "../components/fatigue-panel";
 import { LifePool, BattleSummary } from "../components/battle-summary";
+import { FloatingPanel, FloatingSummary } from "../components/floating-panel";
 
 export default function Home() {
  const [player, setPlayer] = useState<Viewer | null>(null);
@@ -85,7 +86,7 @@ export default function Home() {
  const required = player && player !== "spectator" && room ? requiredCardsFor(player, room.decks[player]) : [];
  const missingRequired = required.filter(card => !room?.ownSlots.includes(card));
  return <main>
-  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.10 · Guerreiro e Monge</p>
+  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.11 · Guerreiro, Monge e Ladino</p>
   {!player && !chosenPlayer ? <section aria-label="Escolher jogador">
    <p>Escolha como entrar na sala.</p>
    <div className="buttons"><button onClick={() => choosePlayer(1)}>Player 1</button><button onClick={() => choosePlayer(2)}>Player 2</button><button className="secondary" onClick={() => enter("spectator")}>Espectador</button></div>
@@ -105,6 +106,7 @@ export default function Home() {
     <p className="round-label">Partida {room.match} · Rodada {room.round}</p>
     <LifePool room={room} />
     <BattleSummary room={room} />
+    <FloatingSummary room={room} />
     <p className={"phase " + (room.revealed ? "revealed" : "")} role="status">
      {room.result ? "Fim da partida." : room.revealed ? "Ambos prontos. Cartas reveladas!" : player === "spectator" ? "Assistindo à preparação. As cartas serão reveladas quando ambos estiverem prontos." : own?.ready ? "Você está pronto. Aguardando o oponente…" : "Escolha 5 cartas e coloque uma em cada slot."}
     </p>
@@ -122,7 +124,8 @@ export default function Home() {
            const definition = room.revealed && card ? definitionFor(side, card) : undefined;
            const face = definition ? <CardText card={definition} /> : card === null ? "Vazio" : "Virada";
            const cardLabel = definition ? ", " + cardDescription(definition) : card ? ", carta virada" : ", vazio";
-           const content = <><span className="slot-number">Slot {slot + 1}</span><span className="card-face">{face}</span></>;
+           const bleeding = room.bleeding[side][slot];
+           const content = <><span className="slot-number">Slot {slot + 1}</span><span className="card-face">{face}</span>{bleeding > 0 && <span className="bleeding-badge">Sangramento {bleeding} · R{room.bleedingRound}</span>}</>;
            const className = "card-slot " + (card ? room.revealed ? "face-up" : "face-down" : "empty-slot");
            return <CardZoom key={slot} side={side} value={face} caption={"Player " + side + " · Slot " + (slot + 1)} enabled={card !== null} hiddenCard={!room.revealed} focusable={side !== player || locked}>
             {side === player ? <button className={className} disabled={locked || (!selected && !card)} aria-label={label + cardLabel} onClick={() => act({ type: "place", slot, card: selected })}>{content}</button>
@@ -134,6 +137,7 @@ export default function Home() {
        })}
       </div>
      </div>
+    {Object.values(room.bleeding).some(slots => slots.some(Boolean)) && <p className="bleeding-note" role="status">Sangramento para a rodada {room.bleedingRound}: cada marcador causa 1 de dano no slot indicado e depois desaparece. Defesa e Defletir podem bloquear; Refletir não.</p>}
     <FatiguePanel fatigue={room.fatigue} />
     </div>
     {player !== "spectator" && !room.revealed && <div className={"hand player-" + player} aria-label="Sua mão">
@@ -149,6 +153,7 @@ export default function Home() {
        </button></CardZoom>;
       })}
      </div>
+     <FloatingPanel room={room} player={player} locked={locked} onAim={(card, targets) => act({ type: "aim", card, targets })} />
     </div>}
     {player !== "spectator" && <div className="actions">
      {!room.revealed && !own?.ready && filled === 5 && missingRequired.length === 0 && <button className="ready-button" disabled={busy} onClick={() => act({ type: "ready" })}>{busy ? "Salvando…" : "Pronto"}</button>}

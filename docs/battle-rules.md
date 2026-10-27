@@ -26,3 +26,7 @@ Após derrota ou empate, colocar cartas, confirmar e avançar rodada é proibido
 Uma sala salva sem os campos de combate recebe vida 10/10, resultado nulo e registro vazio. Rodadas já reveladas não têm dano aplicado retroativamente. A próxima revelação executa o combate normalmente.
 
 lib/battle.ts contém funções puras de confronto e resolução. lib/game.ts gerencia o ciclo da partida, confirmação única e persistência. A vida pertence ao jogador; não pertence à carta ou ao baralho.
+
+## Ladino
+
+Distribuições de Flutuando são validadas antes de Pronto e entram nos destinos na resolução, mantendo sua origem para Atordoamento. Sangramento pendente entra como dano não refletível; cada marcador é consumido nesta rodada. Defesa cobre primeiro o Sangramento pendente, depois o ataque atual e os demais bônus, sempre com um único orçamento de defesa por slot. O resolvedor identifica o dano da própria carta para impedir que ela gere marcadores por dano vindo de outra fonte. Sangramentos novos são agendados para a próxima rodada; a carta 10 adiciona e dobra apenas esse conjunto. Detalhes em rogue-rules.md.

@@ -1,20 +1,21 @@
 import { deckFor, definitionFor, isMandatoryCard, nextAvailableRound, isDeckId, classNameFor, type DeckId } from "./cards.ts";
 import { INITIAL_LIFE, resolveBattle, resultFor, type Life, type MatchResult, type SlotResolution } from "./battle.ts";
+import { emptySlotCounters, emptyFloating, validateTargets, type SlotCounters, type FloatingState } from "./targeting.ts";
 
 export type Player = 1 | 2;
 export type Viewer = Player | "spectator";
 export type Slots = (string | null)[];
 export type FatigueEntry = { usedRound: number; availableRound: number };
 export type FatigueState = Record<Player, Record<string, FatigueEntry>>;
-export type GameState = { decks: Record<Player, DeckId>; match: number; round: number; slots: Record<Player, Slots>; ready: Record<Player, boolean>; fatigue: FatigueState; life: Life; result: MatchResult; battle: SlotResolution[] };
-export type GameAction = { type: "select_deck"; deck: DeckId } | { type: "place"; slot: number; card: string | null } | { type: "ready" } | { type: "reset" } | { type: "restart" };
+export type GameState = { bleeding: SlotCounters; floating: FloatingState; decks: Record<Player, DeckId>; match: number; round: number; slots: Record<Player, Slots>; ready: Record<Player, boolean>; fatigue: FatigueState; life: Life; result: MatchResult; battle: SlotResolution[] };
+export type GameAction = { type: "aim"; card: string; targets: number[] } | { type: "select_deck"; deck: DeckId } | { type: "place"; slot: number; card: string | null } | { type: "ready" } | { type: "reset" } | { type: "restart" };
 export type FieldView = { player: Player; slots: (string | null)[]; ready: boolean };
 export type FatigueView = { player: Player; cards: { card: string; remainingRounds: number; availableRound: number }[] };
-export type RoomView = { decks: Record<Player, DeckId>; version: number; match: number; round: number; initialLife: number; life: Life; result: MatchResult; battle: SlotResolution[]; revealed: boolean; ownSlots: Slots; fields: FieldView[]; fatigue: FatigueView[] };
+export type RoomView = { bleeding: SlotCounters; bleedingRound: number; floating: FloatingState; decks: Record<Player, DeckId>; version: number; match: number; round: number; initialLife: number; life: Life; result: MatchResult; battle: SlotResolution[]; revealed: boolean; ownSlots: Slots; fields: FieldView[]; fatigue: FatigueView[] };
 const players: Player[] = [1, 2];
 export const cardsFor = (player: Player, deck: DeckId = "warrior") => deckFor(player, deck).map(card => card.instanceId);
 export const requiredCardsFor = (player: Player, deck: DeckId = "warrior") => cardsFor(player, deck).filter(card => isMandatoryCard(definitionFor(player, card)!));
-export const newGame = (round = 1, match = 1): GameState => ({ decks: { 1: "warrior", 2: "warrior" }, match, round, slots: { 1: Array(5).fill(null), 2: Array(5).fill(null) }, ready: { 1: false, 2: false }, fatigue: { 1: {}, 2: {} }, life: { 1: INITIAL_LIFE, 2: INITIAL_LIFE }, result: null, battle: [] });
+export const newGame = (round = 1, match = 1): GameState => ({ bleeding: emptySlotCounters(), floating: emptyFloating(), decks: { 1: "warrior", 2: "warrior" }, match, round, slots: { 1: Array(5).fill(null), 2: Array(5).fill(null) }, ready: { 1: false, 2: false }, fatigue: { 1: {}, 2: {} }, life: { 1: INITIAL_LIFE, 2: INITIAL_LIFE }, result: null, battle: [] });
 export const isRevealed = (state: GameState) => state.ready[1] && state.ready[2];
 
 export function isFatigued(state: GameState, player: Player, card: string) {
@@ -47,7 +48,7 @@ function removeRecoveredCards(state: GameState) {
 export function normalizeGameState(input: Pick<GameState, "round" | "slots" | "ready"> & Partial<Omit<GameState, "round" | "slots" | "ready">>): GameState {
  const legacy = !input.fatigue;
  const life = structuredClone(input.life ?? { 1: INITIAL_LIFE, 2: INITIAL_LIFE });
- const state: GameState = { ...structuredClone(input), decks: structuredClone(input.decks ?? { 1: "warrior", 2: "warrior" }), match: input.match ?? 1, fatigue: structuredClone(input.fatigue ?? { 1: {}, 2: {} }), life, result: input.result ?? resultFor(life), battle: structuredClone(input.battle ?? []) };
+ const state: GameState = { ...structuredClone(input), bleeding: structuredClone(input.bleeding ?? emptySlotCounters()), floating: structuredClone(input.floating ?? emptyFloating()), decks: structuredClone(input.decks ?? { 1: "warrior", 2: "warrior" }), match: input.match ?? 1, fatigue: structuredClone(input.fatigue ?? { 1: {}, 2: {} }), life, result: input.result ?? resultFor(life), battle: structuredClone(input.battle ?? []) };
  if (legacy) {
   if (isRevealed(state)) registerFatigue(state);
   else for (const player of players) {
@@ -79,6 +80,7 @@ export function applyAction(input: GameState, player: Player, action: GameAction
   next.decks = structuredClone(state.decks);
   next.life = structuredClone(state.life);
   next.fatigue = structuredClone(state.fatigue);
+  next.bleeding = structuredClone(state.bleeding);
   removeRecoveredCards(next);
   return next;
  }
@@ -88,12 +90,16 @@ export function applyAction(input: GameState, player: Player, action: GameAction
   if (state.slots[player].filter(Boolean).length !== 5) throw new Error("Preencha os 5 slots antes de ficar pronto.");
   if (missingRequiredCards(state, player).length) throw new Error("Todas as cartas Não age são obrigatórias nesta rodada.");
   if (state.slots[player].some(card => card && isFatigued(state, player, card))) throw new Error("Uma carta em Fadiga não pode ser jogada.");
+  for (const [slot, card] of state.slots[player].entries()) {
+   if (card && definitionFor(player, card)?.floating) validateTargets(definitionFor(player, card)!, slot, state.floating[player][card]);
+  }
   next.ready[player] = true;
   if (isRevealed(next)) {
-   const battle = resolveBattle(next.slots, next.life);
+   const battle = resolveBattle(next.slots, next.life, { bleeding: next.bleeding, floating: next.floating });
    next.life = battle.life;
    next.result = battle.result;
    next.battle = battle.log;
+   next.bleeding = battle.bleeding;
    registerFatigue(next);
   }
  } else if (action.type === "place") {
@@ -101,7 +107,19 @@ export function applyAction(input: GameState, player: Player, action: GameAction
   if (action.card !== null && !cardsFor(player, state.decks[player]).includes(action.card)) throw new Error("Esta carta não pertence à sua mão.");
   if (action.card !== null && isFatigued(state, player, action.card)) throw new Error("Esta carta está em Fadiga e ainda não pode voltar à mão.");
   if (action.card !== null && state.slots[player].some((card, index) => card === action.card && index !== action.slot)) throw new Error("Esta carta já ocupa outro slot.");
+  const oldCard = next.slots[player][action.slot];
+  if (oldCard) delete next.floating[player][oldCard];
   next.slots[player][action.slot] = action.card;
+  if (action.card) {
+   const definition = definitionFor(player, action.card)!;
+   if (definition.floating) next.floating[player][action.card] = Array(definition.floating.points).fill(action.slot);
+  }
+ } else if (action.type === "aim") {
+  const slot = state.slots[player].indexOf(action.card);
+  const definition = definitionFor(player, action.card);
+  if (slot < 0 || !definition?.floating) throw new Error("Coloque uma carta com Flutuando no campo antes de distribuir seus efeitos.");
+  validateTargets(definition, slot, action.targets);
+  next.floating[player][action.card] = [...action.targets];
  } else { throw new Error("Ação inválida."); }
  return next;
 }
@@ -110,6 +128,8 @@ export function roomView(input: GameState, player: Viewer, version: number): Roo
  const state = normalizeGameState(input);
  const revealed = isRevealed(state);
  return {
+  bleeding: state.bleeding, bleedingRound: state.round + (revealed ? 1 : 0),
+  floating: { 1: revealed || player === 1 ? state.floating[1] : {}, 2: revealed || player === 2 ? state.floating[2] : {} },
   decks: state.decks, version, match: state.match, round: state.round, initialLife: INITIAL_LIFE, life: state.life, result: state.result, battle: revealed ? state.battle : [], revealed, ownSlots: player === "spectator" ? [] : state.slots[player],
   fields: players.map(side => ({
    player: side, ready: state.ready[side],
