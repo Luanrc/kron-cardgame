@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { warriorCards, deckFor, definitionFor, warriorRulePolicy, nextAvailableRound } from "../lib/cards.ts";
+import { warriorCards, deckFor, definitionFor, warriorRulePolicy, nextAvailableRound, validateDeck, isMandatoryCard } from "../lib/cards.ts";
 
 test("warrior deck matches all ten cards in the reference, including duplicates and separators", () => {
  assert.equal(warriorCards.length, 10);
@@ -27,4 +27,12 @@ test("confirmed meanings are stored independently of displayed text", () => {
  assert.equal(warriorRulePolicy.nextSlotOverflow,"discard");
  assert.equal(warriorRulePolicy.riposte.requires,"actual_opponent_damage");
  assert.equal(warriorRulePolicy.riposte.againstRiposte,"no_effect");
+});
+
+test("every registered deck requires No action cards without fatigue", () => {
+ assert.doesNotThrow(()=>validateDeck(warriorCards));
+ assert.throws(()=>validateDeck(warriorCards.filter(card=>!isMandatoryCard(card))),/Não age/);
+ assert.throws(()=>validateDeck([{...warriorCards[0],fatigue:{rounds:1,reference:"round_placed_and_revealed"}}]),/não podem ter Fadiga/);
+ assert.throws(()=>validateDeck(Array(6).fill(warriorCards[0])),/cinco slots/);
+ assert.ok(warriorCards.filter(isMandatoryCard).every(card=>!card.fatigue));
 });

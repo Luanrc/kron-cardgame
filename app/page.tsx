@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { cardsFor, type GameAction, type Player, type Viewer, type RoomView } from "../lib/game";
+import { cardsFor, requiredCardsFor, type GameAction, type Player, type Viewer, type RoomView } from "../lib/game";
 import { CardZoom } from "../components/card-zoom";
 import { CardText } from "../components/card-text";
-import { definitionFor, cardDescription } from "../lib/cards";
+import { definitionFor, cardDescription, isMandatoryCard } from "../lib/cards";
+import { FatiguePanel } from "../components/fatigue-panel";
 
 export default function Home() {
  const [player, setPlayer] = useState<Viewer | null>(null);
@@ -57,8 +58,12 @@ export default function Home() {
  const own = room?.fields.find(field => field.player === player);
  const filled = room?.ownSlots.filter(Boolean).length ?? 0;
  const locked = busy || !room || !!own?.ready;
+ const fatiguedCards = room?.fatigue.find(side => side.player === player)?.cards.map(entry => entry.card) ?? [];
+ const handCards = player && player !== "spectator" ? cardsFor(player).filter(card => !fatiguedCards.includes(card)) : [];
+ const required = player && player !== "spectator" ? requiredCardsFor(player) : [];
+ const missingRequired = required.filter(card => !room?.ownSlots.includes(card));
  return <main>
-  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.6 · Baralho de Guerreiro</p>
+  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.7 · Baralho de Guerreiro</p>
   {!player ? <section aria-label="Escolher jogador">
    <p>Escolha como entrar na sala.</p>
    <div className="buttons"><button onClick={() => enter(1)}>Player 1</button><button onClick={() => enter(2)}>Player 2</button><button className="secondary" onClick={() => enter("spectator")}>Espectador</button></div>
@@ -66,6 +71,7 @@ export default function Home() {
    <div className="room-header"><h2>Sala única · {player === "spectator" ? "Espectador" : "Player " + player}</h2><button className="secondary" disabled={busy} onClick={leave}>Sair</button></div>
    <p className="status" role="status">{status}</p>
    {room && <>
+    <p className="round-label">Rodada {room.round}</p>
     <p className={"phase " + (room.revealed ? "revealed" : "")} role="status">
      {room.revealed ? "Ambos prontos. Cartas reveladas!" : player === "spectator" ? "Assistindo à preparação. As cartas serão reveladas quando ambos estiverem prontos." : own?.ready ? "Você está pronto. Aguardando o oponente…" : "Escolha 5 cartas e coloque uma em cada slot."}
     </p>
@@ -95,22 +101,25 @@ export default function Home() {
        })}
       </div>
      </div>
+    <FatiguePanel fatigue={room.fatigue} />
     </div>
     {player !== "spectator" && !room.revealed && <div className={"hand player-" + player} aria-label="Sua mão">
-     <h3>Sua mão <span className="field-status">{10 - filled} disponíveis</span></h3>
+     <h3>Sua mão <span className="field-status">{handCards.length - filled} disponíveis</span></h3>
+     <p className="required-note">As {required.length} cartas “Não age” são obrigatórias nesta rodada e não têm Fadiga. {missingRequired.length > 0 ? "Faltam " + missingRequired.length + " no campo." : "Todas estão no campo."}</p>
      <p className="hint">{own?.ready ? "Suas cartas estão travadas até a revelação." : selected ? "Carta " + definitionFor(player, selected)?.number + " selecionada. Clique no slot de destino." : "Clique em uma carta e depois em um slot. Para retirar, clique em um slot ocupado sem carta selecionada."}</p>
      <div className="hand-cards">
-      {cardsFor(player).map(card => {
+      {handCards.map(card => {
        const slot = room.ownSlots.indexOf(card);
        const definition = definitionFor(player, card)!;
        return <CardZoom key={card} side={player} value={<CardText card={definition} />} caption="Sua mão" focusable={locked || slot !== -1}><button className={"hand-card " + (selected === card ? "selected" : "")} disabled={locked || slot !== -1} aria-pressed={selected === card} aria-label={cardDescription(definition) + (slot !== -1 ? ", no slot " + (slot + 1) : "")} onClick={() => setSelected(selected === card ? null : card)}>
-        <CardText card={definition} />{slot !== -1 && <small>Slot {slot + 1}</small>}
+        <CardText card={definition} />{isMandatoryCard(definition) && <small className="mandatory-badge">Obrigatória</small>}{slot !== -1 && <small>Slot {slot + 1}</small>}
        </button></CardZoom>;
       })}
      </div>
     </div>}
     {player !== "spectator" && <div className="actions">
-     {!room.revealed && !own?.ready && filled === 5 && <button className="ready-button" disabled={busy} onClick={() => act({ type: "ready" })}>{busy ? "Salvando…" : "Pronto"}</button>}
+     {!room.revealed && !own?.ready && filled === 5 && missingRequired.length === 0 && <button className="ready-button" disabled={busy} onClick={() => act({ type: "ready" })}>{busy ? "Salvando…" : "Pronto"}</button>}
+     {!room.revealed && !own?.ready && filled === 5 && missingRequired.length > 0 && <p className="required-note" role="status">Inclua todas as cartas “Não age” para poder clicar em Pronto.</p>}
      {!room.revealed && !own?.ready && filled < 5 && <p className="hint">Preencha os 5 slots para ficar pronto. ({filled}/5)</p>}
      {room.revealed && <button className="secondary" disabled={busy} onClick={() => act({ type: "reset" })}>Nova rodada</button>}
     </div>}

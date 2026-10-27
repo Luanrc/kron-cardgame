@@ -23,8 +23,15 @@ export const warriorRulePolicy = {
  fatigue: { unit: "round", starts: "round_after_use" },
 } as const;
 
-// Scheduling helper only; the live game does not apply combat/fatigue yet.
-export const nextAvailableRound = (card: CardDefinition, usedRound: number) => usedRound + (card.fatigue?.rounds ?? 0) + 1;
+export const isMandatoryCard = (card: CardDefinition) => card.effects.some(effect => effect.kind === "no_action");
+export const nextAvailableRound = (card: CardDefinition, usedRound: number) => usedRound + (isMandatoryCard(card) ? 0 : card.fatigue?.rounds ?? 0) + 1;
+
+export function validateDeck(cards: readonly CardDefinition[]) {
+ const required = cards.filter(isMandatoryCard);
+ if (required.length === 0) throw new Error("Todo baralho precisa de cartas Não age.");
+ if (required.length > 5) throw new Error("As cartas obrigatórias precisam caber nos cinco slots.");
+ if (required.some(card => (card.fatigue?.rounds ?? 0) > 0)) throw new Error("Cartas Não age não podem ter Fadiga.");
+}
 
 export const warriorCards: readonly CardDefinition[] = [
  { id: "warrior-01", classId: "warrior", number: 1, text: { main: ["Não age"], footer: [] }, effects: [{ kind: "no_action" }] },
@@ -40,6 +47,7 @@ export const warriorCards: readonly CardDefinition[] = [
 ];
 
 const definitions = new Map(warriorCards.map(card => [card.id, card]));
+validateDeck(warriorCards);
 const decks: Record<Player, readonly DeckCard[]> = {
  // Keep existing instance IDs so rounds already saved on the server survive.
  1: warriorCards.map((card, index) => ({ instanceId: String(index + 1), definitionId: card.id })),

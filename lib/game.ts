@@ -1,43 +1,104 @@
-import { deckFor } from "./cards.ts";
+import { deckFor, definitionFor, isMandatoryCard, nextAvailableRound } from "./cards.ts";
 
 export type Player = 1 | 2;
 export type Viewer = Player | "spectator";
 export type Slots = (string | null)[];
-export type GameState = { round: number; slots: Record<Player, Slots>; ready: Record<Player, boolean> };
+export type FatigueEntry = { usedRound: number; availableRound: number };
+export type FatigueState = Record<Player, Record<string, FatigueEntry>>;
+export type GameState = { round: number; slots: Record<Player, Slots>; ready: Record<Player, boolean>; fatigue: FatigueState };
 export type GameAction = { type: "place"; slot: number; card: string | null } | { type: "ready" } | { type: "reset" };
 export type FieldView = { player: Player; slots: (string | null)[]; ready: boolean };
-export type RoomView = { version: number; round: number; revealed: boolean; ownSlots: Slots; fields: FieldView[] };
+export type FatigueView = { player: Player; cards: { card: string; remainingRounds: number; availableRound: number }[] };
+export type RoomView = { version: number; round: number; revealed: boolean; ownSlots: Slots; fields: FieldView[]; fatigue: FatigueView[] };
+const players: Player[] = [1, 2];
 export const cardsFor = (player: Player) => deckFor(player).map(card => card.instanceId);
-export const newGame = (round = 1): GameState => ({ round, slots: { 1: Array(5).fill(null), 2: Array(5).fill(null) }, ready: { 1: false, 2: false } });
+export const requiredCardsFor = (player: Player) => cardsFor(player).filter(card => isMandatoryCard(definitionFor(player, card)!));
+export const newGame = (round = 1): GameState => ({ round, slots: { 1: Array(5).fill(null), 2: Array(5).fill(null) }, ready: { 1: false, 2: false }, fatigue: { 1: {}, 2: {} } });
 export const isRevealed = (state: GameState) => state.ready[1] && state.ready[2];
 
-export function applyAction(state: GameState, player: Player, action: GameAction): GameState {
+export function isFatigued(state: GameState, player: Player, card: string) {
+ const definition = definitionFor(player, card);
+ if (!definition || isMandatoryCard(definition)) return false;
+ return (state.fatigue[player][card]?.availableRound ?? 0) > state.round;
+}
+export const availableCardsFor = (state: GameState, player: Player) => cardsFor(player).filter(card => !isFatigued(state, player, card));
+export const missingRequiredCards = (state: GameState, player: Player) => requiredCardsFor(player).filter(card => !state.slots[player].includes(card));
+
+function registerFatigue(state: GameState) {
+ for (const player of players) {
+  for (const card of state.slots[player]) {
+   if (!card) continue;
+   const definition = definitionFor(player, card)!;
+   if (isMandatoryCard(definition) || !definition.fatigue?.rounds) continue;
+   state.fatigue[player][card] = { usedRound: state.round, availableRound: nextAvailableRound(definition, state.round) };
+  }
+ }
+}
+function removeRecoveredCards(state: GameState) {
+ for (const player of players) {
+  for (const card of Object.keys(state.fatigue[player])) {
+   if (!isFatigued(state, player, card)) delete state.fatigue[player][card];
+  }
+ }
+}
+
+// Upgrade saved rounds without erasing the field or requiring a database migration.
+export function normalizeGameState(input: Omit<GameState, "fatigue"> & { fatigue?: FatigueState }): GameState {
+ const legacy = !input.fatigue;
+ const state: GameState = { ...structuredClone(input), fatigue: structuredClone(input.fatigue ?? { 1: {}, 2: {} }) };
+ if (legacy) {
+  if (isRevealed(state)) registerFatigue(state);
+  else for (const player of players) {
+   if (state.ready[player] && missingRequiredCards(state, player).length) state.ready[player] = false;
+  }
+ }
+ removeRecoveredCards(state);
+ return state;
+}
+
+export function applyAction(input: GameState, player: Player, action: GameAction): GameState {
  if (player !== 1 && player !== 2) throw new Error("Espectadores só podem assistir.");
+ const state = normalizeGameState(input);
  if (action.type === "reset") {
   if (!isRevealed(state)) throw new Error("A rodada ainda não terminou.");
-  return newGame(state.round + 1);
+  const next = newGame(state.round + 1);
+  next.fatigue = structuredClone(state.fatigue);
+  removeRecoveredCards(next);
+  return next;
  }
  if (state.ready[player]) throw new Error("Você já está pronto. Aguarde o outro jogador.");
  const next = structuredClone(state);
  if (action.type === "ready") {
   if (state.slots[player].filter(Boolean).length !== 5) throw new Error("Preencha os 5 slots antes de ficar pronto.");
+  if (missingRequiredCards(state, player).length) throw new Error("Todas as cartas Não age são obrigatórias nesta rodada.");
+  if (state.slots[player].some(card => card && isFatigued(state, player, card))) throw new Error("Uma carta em Fadiga não pode ser jogada.");
   next.ready[player] = true;
+  if (isRevealed(next)) registerFatigue(next);
  } else if (action.type === "place") {
   if (!Number.isInteger(action.slot) || action.slot < 0 || action.slot > 4) throw new Error("Slot inválido.");
   if (action.card !== null && !cardsFor(player).includes(action.card)) throw new Error("Esta carta não pertence à sua mão.");
+  if (action.card !== null && isFatigued(state, player, action.card)) throw new Error("Esta carta está em Fadiga e ainda não pode voltar à mão.");
   if (action.card !== null && state.slots[player].some((card, index) => card === action.card && index !== action.slot)) throw new Error("Esta carta já ocupa outro slot.");
   next.slots[player][action.slot] = action.card;
  } else { throw new Error("Ação inválida."); }
  return next;
 }
 
-export function roomView(state: GameState, player: Viewer, version: number): RoomView {
+export function roomView(input: GameState, player: Viewer, version: number): RoomView {
+ const state = normalizeGameState(input);
  const revealed = isRevealed(state);
  return {
   version, round: state.round, revealed, ownSlots: player === "spectator" ? [] : state.slots[player],
-  fields: ([1, 2] as Player[]).map(side => ({
+  fields: players.map(side => ({
    player: side, ready: state.ready[side],
    slots: state.slots[side].map(card => card === null ? null : revealed ? card : "hidden"),
+  })),
+  fatigue: players.map(side => ({
+   player: side,
+   cards: cardsFor(side).filter(card => isFatigued(state, side, card)).map(card => {
+    const entry = state.fatigue[side][card];
+    return { card, availableRound: entry.availableRound, remainingRounds: entry.availableRound - Math.max(state.round, entry.usedRound + 1) };
+   }),
   })),
  };
 }

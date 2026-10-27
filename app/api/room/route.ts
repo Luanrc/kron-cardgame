@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { rooms } from "../../../db/schema";
-import { applyAction, newGame, roomView, type GameAction, type GameState, type Player } from "../../../lib/game";
+import { applyAction, newGame, roomView, normalizeGameState, type GameAction, type GameState, type Player } from "../../../lib/game";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store" };
 const reply = (data: unknown, status = 200) => Response.json(data, { status, headers });
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const player: Player = input.player;
   for (let attempt = 0; attempt < 6; attempt++) {
    const room = await readRoom();
-   const state = JSON.parse(room.state) as GameState;
+   const state = normalizeGameState(JSON.parse(room.state) as GameState);
    if (input.round !== state.round) return reply({ error: "A rodada mudou. Aguarde a atualização da sala." }, 409);
    let next;
    try { next = applyAction(state, player, input.action as GameAction); }

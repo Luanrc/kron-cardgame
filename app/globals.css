@@ -43,6 +43,18 @@ button.card-slot:hover:not(:disabled) { background: var(--pale); border-color: v
 .hand-card:hover:not(:disabled) { background: var(--pale); }
 .hand-card:disabled { border-color: #ccc; background: #f1f1f1; color: #888; }
 .actions { margin-top: 18px; }
+.round-label { margin: 8px 0; font-weight: bold; }
+.required-note { font-size: 13px; color: #6b481b; }
+.hand-card .mandatory-badge { color: #6b481b; font-weight: bold; padding-top: 4px; }
+.fatigue-panel { border: 1px solid #ccc; margin-top: 16px; padding: 16px; background: #fafafa; }
+.fatigue-panel h3 { margin-bottom: 4px; }
+.fatigue-panel > .hint { margin-top: 0; }
+.fatigue-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.fatigue-side h4 { margin: 0 0 8px; font-size: 14px; }
+.fatigue-side ul { list-style: none; padding: 0; margin: 0; }
+.fatigue-side li + li { margin-top: 8px; }
+.fatigue-entry { display: flex; flex-direction: column; padding: 8px 10px; border-left: 3px solid var(--accent); background: white; font-size: 12px; }
+.fatigue-count { margin-top: 4px; color: #6b481b; }
 .card-zoom { min-width: 0; }
 .card-zoom > .card-slot, .card-zoom > .hand-card { width: 100%; }
 .card-zoom:focus-visible { outline: 3px solid #3677c9; outline-offset: 3px; }
@@ -64,4 +76,5 @@ button.card-slot:hover:not(:disabled) { background: var(--pale); border-color: v
 .ready-button:hover:not(:disabled) { background: #235638; }
 @media (max-width: 600px) { .hand-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .field-status { display: inline-block; } }
 @media (max-width: 420px) { .hand-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .fatigue-columns { grid-template-columns: 1fr; } }
 @media (max-width: 420px) { section { padding: 16px; } }

@@ -18,6 +18,12 @@ if (start.revealed) {
 assert.ok(start.fields.every(field => field.slots.every(card => card === null)), "Local room must be empty or already revealed before testing.");
 await act(1, { type: "ready" }, 400);
 await act(1, { type: "place", slot: 0, card: "A" }, 400);
+for (const [slot,card] of ["1","3","4","5","6"].entries()) await act(1,{type:"place",slot,card});
+await act(1,{type:"ready"},400);
+for (let slot=1;slot<5;slot++) await act(1,{type:"place",slot,card:null});
+for (const side of start.fatigue) {
+ if (side.cards.length) await act(side.player,{type:"place",slot:0,card:side.cards[0].card},400);
+}
 for (let slot = 0; slot < 5; slot++) {
  await Promise.all([
   act(1, { type: "place", slot, card: String(slot + 1) }),
