@@ -7,8 +7,8 @@ Cada jogador começa com 10 de vida. Toda resolução acontece no servidor, na m
 1. Receber os bônus trazidos pelo slot anterior.
 2. Identificar Atordoamento. Ele bloqueia somente a carta adversária atual, inclusive seus efeitos de seta. Não apaga bônus recebidos do slot anterior. Dois Atordoamentos bloqueiam ambas as cartas.
 3. Somar defesa e dano normal das cartas ativas aos bônus recebidos.
-4. Ativar Ripostar apenas se o dano normal adversário ultrapassar a defesa do jogador. Duas cartas de Ripostar não ativam uma à outra. Bônus anteriores continuam existindo independentemente da reação.
-5. Calcular o dano nos dois sentidos: max(0, danoAdversário - defesaPrópria). Ataques não se anulam entre si; defesa excedente não causa dano nem cura.
+4. Considerar a proteção de Refletir nos slots atual e anterior, caso a carta de origem não esteja atordoada. Simular o dano normal com defesa, Defletir e devoluções para ativar Ripostar apenas quando o jogador realmente sofrer dano. Duas cartas de Ripostar não ativam uma à outra. Bônus anteriores continuam existindo independentemente da reação.
+5. Acrescentar o dano das Ripostas ativadas e calcular os dois sentidos com os mesmos efeitos. Defesa absorve 1:1, inclusive dano refletido, sem reutilizar pontos já consumidos no slot. Defletir anula o restante. Refletir anula e devolve, no máximo uma vez por jogador por slot; detalhes e interações em monk-rules.md. Na carta 10 do Monge, o bônus de defesa seguinte só é gerado se Ripostar ativar. Ataques não se anulam entre si; defesa excedente não causa dano nem cura.
 6. Reduzir simultaneamente as duas reservas de vida, limitando-as a zero.
 7. Se ambos chegaram a zero neste slot, empate. Se apenas um chegou, o outro vence. Não resolver slots posteriores ao fim da partida.
 8. Caso a partida continue, os efeitos de seta das cartas ativas seguem apenas para o próximo slot. Os efeitos seguintes ao slot 5 são descartados.
@@ -19,7 +19,7 @@ O dano de Ripostar também participa da aplicação simultânea do slot: a derro
 
 O avanço para Nova rodada preserva a vida e a Fadiga, limpa os slots e o registro de confrontos da rodada anterior. Toda carta colocada/revelada recebe sua Fadiga, mesmo sem gerar dano ou em um slot posterior ao encerramento: o critério confirmado para Fadiga é a colocação/revelação da carta.
 
-Após derrota ou empate, colocar cartas, confirmar e avançar rodada é proibido. Nova partida restaura 10/10, limpa a Fadiga, volta à rodada 1 e incrementa match. A API exige match e round em cada ação para rejeitar pedidos atrasados, inclusive quando duas partidas diferentes estão na rodada 1.
+Após derrota ou empate, colocar cartas, confirmar e avançar rodada é proibido. Nova partida restaura 10/10, limpa a Fadiga, preserva as classes escolhidas, volta à rodada 1 e incrementa match. A API exige match e round em cada ação para rejeitar pedidos atrasados, inclusive quando duas partidas diferentes estão na rodada 1.
 
 ## Compatibilidade
 

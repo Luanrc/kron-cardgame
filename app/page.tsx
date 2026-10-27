@@ -3,14 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import { cardsFor, requiredCardsFor, type GameAction, type Player, type Viewer, type RoomView } from "../lib/game";
 import { CardZoom } from "../components/card-zoom";
 import { CardText } from "../components/card-text";
-import { definitionFor, cardDescription, isMandatoryCard } from "../lib/cards";
+import { definitionFor, cardDescription, isMandatoryCard, deckOptions, classNameFor, type DeckId } from "../lib/cards";
 import { FatiguePanel } from "../components/fatigue-panel";
 import { LifePool, BattleSummary } from "../components/battle-summary";
 
 export default function Home() {
  const [player, setPlayer] = useState<Viewer | null>(null);
  const [chosenPlayer, setChosenPlayer] = useState<Player | null>(null);
- const [chosenDeck, setChosenDeck] = useState<"warrior" | null>(null);
+ const [chosenDeck, setChosenDeck] = useState<DeckId | null>(null);
  const [room, setRoom] = useState<RoomView | null>(null);
  const [selected, setSelected] = useState<string | null>(null);
  const [status, setStatus] = useState("Conectando…");
@@ -38,14 +38,28 @@ export default function Home() {
   return () => { active = false; clearTimeout(timer); controller.abort(); };
  }, [player]);
 
- useEffect(() => { setSelected(null); setError(""); }, [room?.match, room?.round]);
+ useEffect(() => { setSelected(null); setError(""); }, [room?.match, room?.round, room?.decks[1], room?.decks[2]]);
 
  function enter(side: Viewer) {
   setChosenPlayer(null); setChosenDeck(null);
   activePlayer.current = side; setPlayer(side); setRoom(null); setSelected(null); setError(""); setStatus("Conectando…");
  }
  function choosePlayer(side: Player) {
-  setChosenPlayer(side); setChosenDeck(null);
+  setChosenPlayer(side); setChosenDeck(null); setError("");
+ }
+ async function confirmDeck() {
+  if (!chosenPlayer || !chosenDeck || pending.current) return;
+  pending.current = true; setBusy(true); setError("");
+  try {
+   const current = await fetch("/api/room?player=" + chosenPlayer, { cache: "no-store" });
+   if (!current.ok) throw new Error("Não foi possível conectar à sala. Tente novamente.");
+   const snapshot = await current.json() as RoomView;
+   const response = await fetch("/api/room", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ player: chosenPlayer, match: snapshot.match, round: snapshot.round, action: { type: "select_deck", deck: chosenDeck } }) });
+   const data = await response.json() as RoomView & { error?: string };
+   if (!response.ok) throw new Error(data.error || "Não foi possível escolher o baralho.");
+   enter(chosenPlayer); updateRoom(data); setStatus("Conectado à sala");
+  } catch (error) { setError(error instanceof Error ? error.message : "Falha de conexão. Tente novamente."); }
+  finally { pending.current = false; setBusy(false); }
  }
  function leave() {
   setChosenPlayer(null); setChosenDeck(null);
@@ -67,22 +81,23 @@ export default function Home() {
  const filled = room?.ownSlots.filter(Boolean).length ?? 0;
  const locked = busy || !room || !!own?.ready || !!room.result;
  const fatiguedCards = room?.fatigue.find(side => side.player === player)?.cards.map(entry => entry.card) ?? [];
- const handCards = player && player !== "spectator" ? cardsFor(player).filter(card => !fatiguedCards.includes(card)) : [];
- const required = player && player !== "spectator" ? requiredCardsFor(player) : [];
+ const handCards = player && player !== "spectator" && room ? cardsFor(player, room.decks[player]).filter(card => !fatiguedCards.includes(card)) : [];
+ const required = player && player !== "spectator" && room ? requiredCardsFor(player, room.decks[player]) : [];
  const missingRequired = required.filter(card => !room?.ownSlots.includes(card));
  return <main>
-  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.9 · Baralho de Guerreiro</p>
+  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.10 · Guerreiro e Monge</p>
   {!player && !chosenPlayer ? <section aria-label="Escolher jogador">
    <p>Escolha como entrar na sala.</p>
    <div className="buttons"><button onClick={() => choosePlayer(1)}>Player 1</button><button onClick={() => choosePlayer(2)}>Player 2</button><button className="secondary" onClick={() => enter("spectator")}>Espectador</button></div>
   </section> : !player && chosenPlayer ? <section aria-label="Escolher baralho">
-   <div className="room-header"><h2>Player {chosenPlayer} · Escolha seu baralho</h2><button className="secondary" onClick={leave}>Voltar</button></div>
+   <div className="room-header"><h2>Player {chosenPlayer} · Escolha seu baralho</h2><button className="secondary" disabled={busy} onClick={leave}>Voltar</button></div>
    <p>Selecione um baralho para entrar na sala.</p>
-   <label className={"deck-option " + (chosenDeck === "warrior" ? "deck-selected" : "")}>
-    <input type="radio" name="deck" value="warrior" checked={chosenDeck === "warrior"} onChange={() => setChosenDeck("warrior")} aria-label="Guerreiro" />
-    <span><strong>Guerreiro</strong><span className="deck-description">Dano, defesa, Atordoamento e Ripostar.</span><small>10 cartas · 2 “Não age” obrigatórias por rodada</small></span>
-   </label>
-   <div className="actions"><button className="enter-room" disabled={!chosenDeck} onClick={() => { if (chosenDeck === "warrior") enter(chosenPlayer); }}>Entrar na sala</button></div>
+   <div className="deck-options">{deckOptions.map(deck => <label key={deck.id} className={"deck-option " + (chosenDeck === deck.id ? "deck-selected" : "")}>
+    <input type="radio" name="deck" value={deck.id} checked={chosenDeck === deck.id} disabled={busy} onChange={() => { setChosenDeck(deck.id); setError(""); }} aria-label={deck.name} />
+    <span><strong>{deck.name}</strong><span className="deck-description">{deck.description}</span><small>10 cartas · 2 “Não age” obrigatórias por rodada</small></span>
+   </label>)}</div>
+   <div className="actions"><button className="enter-room" disabled={!chosenDeck || busy} onClick={confirmDeck}>{busy ? "Entrando…" : "Entrar na sala"}</button></div>
+   {error && <p className="error" role="alert">{error}</p>}
   </section> : player ? <section aria-label="Sala compartilhada">
    <div className="room-header"><h2>Sala única · {player === "spectator" ? "Espectador" : "Player " + player}</h2><button className="secondary" disabled={busy} onClick={leave}>Sair</button></div>
    <p className="status" role="status">{status}</p>
@@ -100,7 +115,7 @@ export default function Home() {
        {(player === "spectator" ? [2, 1] as Player[] : [player === 1 ? 2 : 1, player] as Player[]).map(side => {
         const field = room.fields.find(item => item.player === side)!;
         return <div className={"player-field player-" + side} key={side}>
-         <p className="field-label">Player {side}{player !== "spectator" && (side === player ? " · Você" : " · Oponente")} <span className="field-status">{field.slots.filter(Boolean).length}/5 · {field.ready ? "Pronto" : "Preparando"}</span></p>
+         <p className="field-label">Player {side} · {classNameFor(room.decks[side])}{player !== "spectator" && (side === player ? " · Você" : " · Oponente")} <span className="field-status">{field.slots.filter(Boolean).length}/5 · {field.ready ? "Pronto" : "Preparando"}</span></p>
          <div className="slot-row" role="group" aria-label={"Campo do Player " + side}>
           {field.slots.map((card, slot) => {
            const label = "Player " + side + ", slot " + (slot + 1);

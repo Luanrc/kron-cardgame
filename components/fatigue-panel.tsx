@@ -1,4 +1,4 @@
-import { definitionFor } from "../lib/cards";
+import { definitionFor, classNameFor } from "../lib/cards";
 import type { FatigueView } from "../lib/game";
 import { CardZoom } from "./card-zoom";
 import { CardText } from "./card-text";
@@ -16,7 +16,7 @@ export function FatiguePanel({ fatigue }: { fatigue: FatigueView[] }) {
       return <li key={entry.card}>
        <CardZoom side={side.player} value={<CardText card={card} />} caption={"Player " + side.player + " · Em Fadiga"} focusable>
         <div className="fatigue-entry">
-         <strong>Guerreiro · {String(card.number).padStart(2, "0")}</strong>
+         <strong>{classNameFor(card.classId)} · {String(card.number).padStart(2, "0")}</strong>
          <span>{card.text.main.join(" ")}</span>
          <span className="fatigue-count">{entry.remainingRounds === 1 ? "Resta 1 rodada" : "Restam " + entry.remainingRounds + " rodadas"} · Volta na rodada {entry.availableRound}</span>
         </div>

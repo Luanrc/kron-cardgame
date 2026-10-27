@@ -9,6 +9,7 @@ export type SlotCombat = {
  damage: Life; defense: Life; damageTaken: Life;
  stunned: Record<Player, boolean>; riposteTriggered: Record<Player, boolean>;
  incoming: Record<Player, Bonus>; outgoing: Record<Player, Bonus>;
+ deflected: Life; reflected: Life;
 };
 export type SlotResolution = SlotCombat & { slot: number; lifeAfter: Life };
 const players: Player[] = [1, 2];
@@ -21,7 +22,36 @@ export function resultFor(life: Life): MatchResult {
  return null;
 }
 
-export function resolveSlot(cards: Record<Player, CardDefinition | undefined>, incoming = emptyBonuses()): SlotCombat {
+// Each defense point absorbs one damage across all simultaneous damage sources.
+// Each player's Reflect can redirect once in this slot, including a returned attack.
+function settleDamage(damage: Life, defense: Life, deflect: Record<Player, boolean>, reflect: Record<Player, boolean>) {
+ const remainingDefense = structuredClone(defense);
+ const usedReflection = { 1: false, 2: false };
+ const damageTaken: Life = { 1: 0, 2: 0 };
+ const deflected: Life = { 1: 0, 2: 0 };
+ const reflected: Life = { 1: 0, 2: 0 };
+ let pending: Life = { 1: damage[2], 2: damage[1] };
+ // Initial damage plus at most two reflections: finite and symmetric.
+ for (let wave = 0; wave < 3 && (pending[1] || pending[2]); wave++) {
+  const next: Life = { 1: 0, 2: 0 };
+  for (const player of players) {
+   const blocked = Math.min(pending[player], remainingDefense[player]);
+   remainingDefense[player] -= blocked;
+   const amount = pending[player] - blocked;
+   if (!amount) continue;
+   if (deflect[player]) deflected[player] += amount;
+   else if (reflect[player] && !usedReflection[player]) {
+    usedReflection[player] = true;
+    reflected[player] += amount;
+    next[opponent(player)] += amount;
+   } else damageTaken[player] += amount;
+  }
+  pending = next;
+ }
+ return { damageTaken, deflected, reflected };
+}
+
+export function resolveSlot(cards: Record<Player, CardDefinition | undefined>, incoming = emptyBonuses(), reflectionFromNextSlot: Record<Player, boolean> = { 1: false, 2: false }): SlotCombat {
  const stunned: Record<Player, boolean> = {
   1: !!cards[2]?.effects.some(effect => effect.kind === "stun"),
   2: !!cards[1]?.effects.some(effect => effect.kind === "stun"),
@@ -45,15 +75,27 @@ export function resolveSlot(cards: Record<Player, CardDefinition | undefined>, i
   2: incoming[2].damage + (riposte[2] ? 0 : current[2].damage),
  };
  const riposteTriggered: Record<Player, boolean> = { 1: false, 2: false };
+ const deflect: Record<Player, boolean> = {
+  1: !stunned[1] && !!cards[1]?.effects.some(effect => effect.kind === "deflect"),
+  2: !stunned[2] && !!cards[2]?.effects.some(effect => effect.kind === "deflect"),
+ };
+ const reflect: Record<Player, boolean> = {
+  1: reflectionFromNextSlot[1] || (!stunned[1] && !!cards[1]?.effects.some(effect => effect.kind === "reflect")),
+  2: reflectionFromNextSlot[2] || (!stunned[2] && !!cards[2]?.effects.some(effect => effect.kind === "reflect")),
+ };
+ const initial = settleDamage(damage, defense, deflect, reflect);
  // Establish real, non-reactive damage first: two Ripostes cannot trigger each other.
  if (!(riposte[1] && riposte[2])) {
   for (const player of players) {
-   riposteTriggered[player] = riposte[player] && damage[opponent(player)] > defense[player];
+   riposteTriggered[player] = riposte[player] && initial.damageTaken[player] > 0;
   }
  }
- for (const player of players) if (riposteTriggered[player]) damage[player] += current[player].damage;
+ for (const player of players) {
+  if (riposteTriggered[player]) damage[player] += current[player].damage;
+  if (cards[player]?.nextSlotCondition === "riposte_triggered" && !riposteTriggered[player]) outgoing[player] = { damage: 0, defense: 0 };
+ }
  return {
-  damage, defense, damageTaken: { 1: Math.max(0, damage[2] - defense[1]), 2: Math.max(0, damage[1] - defense[2]) },
+  damage, defense, ...settleDamage(damage, defense, deflect, reflect),
   stunned, riposteTriggered, incoming: structuredClone(incoming), outgoing,
  };
 }
@@ -63,11 +105,13 @@ export function resolveBattle(slots: Record<Player, Slots>, startingLife: Life):
  let result = resultFor(life);
  let incoming = emptyBonuses();
  const log: SlotResolution[] = [];
+ const cardAt = (player: Player, slot: number) => slots[player][slot] ? definitionFor(player, slots[player][slot]!) : undefined;
+ const reflectionAt = (player: Player, slot: number) => slot < 5 && !!cardAt(player, slot)?.effects.some(effect => effect.kind === "reflect") && !cardAt(opponent(player), slot)?.effects.some(effect => effect.kind === "stun");
  for (let slot = 0; slot < 5 && !result; slot++) {
   const combat = resolveSlot({
-   1: slots[1][slot] ? definitionFor(1, slots[1][slot]!) : undefined,
-   2: slots[2][slot] ? definitionFor(2, slots[2][slot]!) : undefined,
-  }, incoming);
+   1: cardAt(1, slot),
+   2: cardAt(2, slot),
+  }, incoming, { 1: reflectionAt(1, slot + 1), 2: reflectionAt(2, slot + 1) });
   // Apply both directions before checking defeat: no Player 1/Player 2 priority.
   life = { 1: Math.max(0, life[1] - combat.damageTaken[1]), 2: Math.max(0, life[2] - combat.damageTaken[2]) };
   log.push({ ...combat, slot: slot + 1, lifeAfter: structuredClone(life) });
