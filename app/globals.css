@@ -1,0 +1,20 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #f5f5f5; color: #222; font: 16px/1.5 Arial, sans-serif; }
+main { width: min(100% - 32px, 640px); margin: 48px auto; }
+h1 { margin: 0; font-size: 26px; }
+h2 { margin: 0; font-size: 18px; }
+.subtitle { margin: 4px 0 28px; color: #666; }
+section { background: white; border: 1px solid #ccc; padding: 24px; border-radius: 6px; }
+.buttons, .room-header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.room-header { justify-content: space-between; }
+button { padding: 12px 20px; border: 1px solid #222; border-radius: 4px; background: #222; color: white; cursor: pointer; font: inherit; }
+button:hover { background: #444; }
+button:focus-visible { outline: 3px solid #3677c9; outline-offset: 3px; }
+button:disabled { opacity: .6; cursor: wait; }
+button.secondary { background: white; color: #333; padding: 6px 12px; border-color: #aaa; }
+.status, .empty { color: #666; font-size: 14px; }
+.messages { height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 12px; margin: 20px 0; overflow-wrap: anywhere; }
+.messages p { padding: 8px 0; margin: 0; border-bottom: 1px solid #eee; }
+.sender { display: block; color: #666; font-size: 12px; }
+.error { color: #a40000; }
+@media (max-width: 420px) { main { margin-top: 24px; } section { padding: 16px; } }
