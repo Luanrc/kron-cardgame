@@ -5,13 +5,13 @@ import { createPortal } from "react-dom";
 import type { Player } from "../lib/game";
 
 export function CardZoom({ children, side, value, caption, enabled = true, hiddenCard = false, focusable = false }: {
- children: ReactNode; side: Player; value: string; caption: string; enabled?: boolean; hiddenCard?: boolean; focusable?: boolean;
+ children: ReactNode; side: Player; value: ReactNode; caption: string; enabled?: boolean; hiddenCard?: boolean; focusable?: boolean;
 }) {
  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
  function show(event: SyntheticEvent<HTMLDivElement>) {
   if (!enabled || (event.type === "mouseenter" && !window.matchMedia("(hover: hover)").matches)) return;
   const bounds = event.currentTarget.getBoundingClientRect();
-  const width = 176, height = 264, gap = 16, margin = 12;
+  const width = 236, height = 354, gap = 16, margin = 12;
   const preferredLeft = bounds.right + gap + width <= window.innerWidth - margin ? bounds.right + gap : bounds.left - gap - width;
   setPosition({
    left: Math.max(margin, Math.min(preferredLeft, window.innerWidth - width - margin)),

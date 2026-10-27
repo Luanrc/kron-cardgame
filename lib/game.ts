@@ -1,3 +1,5 @@
+import { deckFor } from "./cards.ts";
+
 export type Player = 1 | 2;
 export type Viewer = Player | "spectator";
 export type Slots = (string | null)[];
@@ -5,7 +7,7 @@ export type GameState = { round: number; slots: Record<Player, Slots>; ready: Re
 export type GameAction = { type: "place"; slot: number; card: string | null } | { type: "ready" } | { type: "reset" };
 export type FieldView = { player: Player; slots: (string | null)[]; ready: boolean };
 export type RoomView = { version: number; round: number; revealed: boolean; ownSlots: Slots; fields: FieldView[] };
-export const cardsFor = (player: Player) => player === 1 ? Array.from({ length: 10 }, (_, i) => String(i + 1)) : Array.from({ length: 10 }, (_, i) => String.fromCharCode(65 + i));
+export const cardsFor = (player: Player) => deckFor(player).map(card => card.instanceId);
 export const newGame = (round = 1): GameState => ({ round, slots: { 1: Array(5).fill(null), 2: Array(5).fill(null) }, ready: { 1: false, 2: false } });
 export const isRevealed = (state: GameState) => state.ready[1] && state.ready[2];
 
