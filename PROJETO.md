@@ -1,6 +1,8 @@
 # Kron Card Game
 
-Protótipo 0.8 de um cardgame online 1v1. Este diretório é o projeto do game; não confundir com Kron RPG.
+Protótipo 0.9 de um cardgame online 1v1. Este diretório é o projeto do game; não confundir com Kron RPG.
+
+Entrada dos jogadores em três etapas: escolher Player 1 ou Player 2, selecionar o baralho e confirmar Entrar na sala. Por enquanto, Guerreiro é a única opção e usa o catálogo já compartilhado pelos dois jogadores. Voltar permite trocar de jogador; Sair retorna ao início. A conexão com a sala começa somente após confirmar o baralho. Espectador entra diretamente na sala, sem escolher baralho. A escolha ainda é local; o servidor mantém o único baralho de Guerreiro existente.
 
 Combate e vida ativos: cada jogador começa com 10 de vida, preservada entre rodadas. O servidor resolve os slots 1 a 5 quando ambos confirmam Pronto, com defesa absorvendo dano 1:1 e ataques simultâneos em cada slot. Vida nunca fica negativa. O primeiro slot letal encerra a partida; ambos a zero no mesmo slot é empate. Há registro público de dano e vida após cada slot, Atordoamento e Ripostas ativadas. Jogadas e Nova rodada ficam bloqueadas após o fim; Nova partida restaura vida e cartas, limpa Fadiga e incrementa a identidade da partida. Pedidos atrasados de outra partida são rejeitados pelo servidor.
 

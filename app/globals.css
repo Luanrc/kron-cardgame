@@ -8,6 +8,15 @@ h3 { font-size: 16px; margin: 0 0 12px; }
 section { background: white; border: 1px solid #ccc; padding: 24px; border-radius: 6px; }
 .buttons, .room-header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .room-header { justify-content: space-between; }
+.deck-option { display: flex; align-items: flex-start; gap: 12px; max-width: 420px; padding: 18px; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; }
+.deck-option:hover { border-color: #777; }
+.deck-option.deck-selected { border-color: #356c9b; background: #eaf1f8; }
+.deck-option:focus-within { outline: 3px solid #3677c9; outline-offset: 3px; }
+.deck-option input { margin: 5px 0 0; accent-color: #356c9b; }
+.deck-option strong { font-size: 18px; }
+.deck-description, .deck-option small { display: block; margin-top: 6px; }
+.deck-option small { color: #666; font-size: 12px; }
+.enter-room:disabled { opacity: .5; }
 button { padding: 12px 20px; border: 1px solid #222; border-radius: 4px; background: #222; color: white; cursor: pointer; font: inherit; }
 button:hover:not(:disabled) { background: #444; }
 button:focus-visible, .board-scroll:focus-visible { outline: 3px solid #3677c9; outline-offset: 3px; }

@@ -9,6 +9,8 @@ import { LifePool, BattleSummary } from "../components/battle-summary";
 
 export default function Home() {
  const [player, setPlayer] = useState<Viewer | null>(null);
+ const [chosenPlayer, setChosenPlayer] = useState<Player | null>(null);
+ const [chosenDeck, setChosenDeck] = useState<"warrior" | null>(null);
  const [room, setRoom] = useState<RoomView | null>(null);
  const [selected, setSelected] = useState<string | null>(null);
  const [status, setStatus] = useState("Conectando…");
@@ -39,9 +41,14 @@ export default function Home() {
  useEffect(() => { setSelected(null); setError(""); }, [room?.match, room?.round]);
 
  function enter(side: Viewer) {
+  setChosenPlayer(null); setChosenDeck(null);
   activePlayer.current = side; setPlayer(side); setRoom(null); setSelected(null); setError(""); setStatus("Conectando…");
  }
+ function choosePlayer(side: Player) {
+  setChosenPlayer(side); setChosenDeck(null);
+ }
  function leave() {
+  setChosenPlayer(null); setChosenDeck(null);
   activePlayer.current = null; setPlayer(null); setRoom(null); setSelected(null); setError("");
  }
  async function act(action: GameAction) {
@@ -64,11 +71,19 @@ export default function Home() {
  const required = player && player !== "spectator" ? requiredCardsFor(player) : [];
  const missingRequired = required.filter(card => !room?.ownSlots.includes(card));
  return <main>
-  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.8 · Baralho de Guerreiro</p>
-  {!player ? <section aria-label="Escolher jogador">
+  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.9 · Baralho de Guerreiro</p>
+  {!player && !chosenPlayer ? <section aria-label="Escolher jogador">
    <p>Escolha como entrar na sala.</p>
-   <div className="buttons"><button onClick={() => enter(1)}>Player 1</button><button onClick={() => enter(2)}>Player 2</button><button className="secondary" onClick={() => enter("spectator")}>Espectador</button></div>
-  </section> : <section aria-label="Sala compartilhada">
+   <div className="buttons"><button onClick={() => choosePlayer(1)}>Player 1</button><button onClick={() => choosePlayer(2)}>Player 2</button><button className="secondary" onClick={() => enter("spectator")}>Espectador</button></div>
+  </section> : !player && chosenPlayer ? <section aria-label="Escolher baralho">
+   <div className="room-header"><h2>Player {chosenPlayer} · Escolha seu baralho</h2><button className="secondary" onClick={leave}>Voltar</button></div>
+   <p>Selecione um baralho para entrar na sala.</p>
+   <label className={"deck-option " + (chosenDeck === "warrior" ? "deck-selected" : "")}>
+    <input type="radio" name="deck" value="warrior" checked={chosenDeck === "warrior"} onChange={() => setChosenDeck("warrior")} aria-label="Guerreiro" />
+    <span><strong>Guerreiro</strong><span className="deck-description">Dano, defesa, Atordoamento e Ripostar.</span><small>10 cartas · 2 “Não age” obrigatórias por rodada</small></span>
+   </label>
+   <div className="actions"><button className="enter-room" disabled={!chosenDeck} onClick={() => { if (chosenDeck === "warrior") enter(chosenPlayer); }}>Entrar na sala</button></div>
+  </section> : player ? <section aria-label="Sala compartilhada">
    <div className="room-header"><h2>Sala única · {player === "spectator" ? "Espectador" : "Player " + player}</h2><button className="secondary" disabled={busy} onClick={leave}>Sair</button></div>
    <p className="status" role="status">{status}</p>
    {room && <>
@@ -129,6 +144,6 @@ export default function Home() {
     </div>}
    </>}
    {error && <p className="error" role="alert">{error}</p>}
-  </section>}
+  </section> : null}
  </main>;
 }
