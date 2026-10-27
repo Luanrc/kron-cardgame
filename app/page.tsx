@@ -38,13 +38,28 @@ export default function Home() {
   finally { setSending(false); }
  }
  return <main>
-  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.1</p>
+  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.2</p>
   {!player ? <section aria-label="Escolher jogador">
    <p>Escolha seu jogador para entrar na sala.</p>
    <div className="buttons"><button onClick={() => setPlayer(1)}>Player 1</button><button onClick={() => setPlayer(2)}>Player 2</button></div>
   </section> : <section aria-label="Sala compartilhada">
    <div className="room-header"><h2>Sala única · Player {player}</h2><button className="secondary" onClick={() => { setPlayer(null); setMessages([]); setError(""); }}>Sair</button></div>
    <p className="status" role="status">{status}</p>
+   <div className="battlefield" aria-label="Campo de batalha">
+    <h3>Campo de batalha</h3>
+    <div className="board-scroll" tabIndex={0} role="region" aria-label="Slots dos dois jogadores">
+     <div className="board">
+      {[player === 1 ? 2 : 1, player].map((side, row) => <div className="player-field" key={side}>
+       <p className="field-label">Player {side} · {row === 0 ? "Oponente" : "Você"}</p>
+       <div className="slot-row" role="group" aria-label={`Campo do Player ${side}`}>
+        {[1, 2, 3, 4, 5].map(slot => <div className="card-slot" key={slot} aria-label={`Player ${side}, slot ${slot}`}>
+         <span>Slot {slot}</span>
+        </div>)}
+       </div>
+      </div>)}
+     </div>
+    </div>
+   </div>
    <div className="messages" role="log" aria-label="Mensagens da sala" aria-live="polite" aria-relevant="additions">
     {messages.length === 0 ? <p className="empty">As mensagens dos dois jogadores aparecerão aqui.</p> : messages.map(message => <p key={message.id}><span className="sender">Player {message.player}</span>{message.text}</p>)}
     <div ref={bottom} />
