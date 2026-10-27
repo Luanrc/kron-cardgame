@@ -24,6 +24,6 @@ button.secondary { background: white; color: #333; padding: 6px 12px; border-col
 .board { min-width: 460px; padding: 16px; }
 .player-field + .player-field { border-top: 1px solid #ccc; margin-top: 24px; padding-top: 20px; }
 .field-label { margin: 0 0 10px; font-size: 14px; font-weight: bold; }
-.slot-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.slot-row { display: grid; grid-template-columns: repeat(5, minmax(0, 100px)); justify-content: space-between; gap: 12px; }
 .card-slot { aspect-ratio: 2 / 3; display: flex; align-items: center; justify-content: center; border: 2px solid #999; background: white; color: #666; font-size: 14px; }
 @media (max-width: 420px) { main { margin-top: 24px; } section { padding: 16px; } }

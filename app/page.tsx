@@ -25,7 +25,10 @@ export default function Home() {
   refresh();
   return () => { active = false; clearTimeout(timer); controller.abort(); };
  }, [player]);
- useEffect(() => { bottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [messages.length, messages.at(-1)?.id]);
+ useEffect(() => {
+  const log = bottom.current?.parentElement;
+  log?.scrollTo({ top: log.scrollHeight, behavior: "smooth" });
+ }, [messages.length, messages.at(-1)?.id]);
  async function send() {
   if (!player || sending) return;
   setSending(true); setError("");
