@@ -7,6 +7,7 @@ import { definitionFor, cardDescription, isMandatoryCard, deckOptions, className
 import { FatiguePanel } from "../components/fatigue-panel";
 import { LifePool, BattleSummary } from "../components/battle-summary";
 import { FloatingPanel, FloatingSummary } from "../components/floating-panel";
+import { HolyPowerPanel } from "../components/holy-power-panel";
 
 export default function Home() {
  const [player, setPlayer] = useState<Viewer | null>(null);
@@ -86,7 +87,7 @@ export default function Home() {
  const required = player && player !== "spectator" && room ? requiredCardsFor(player, room.decks[player]) : [];
  const missingRequired = required.filter(card => !room?.ownSlots.includes(card));
  return <main>
-  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.11 · Guerreiro, Monge e Ladino</p>
+  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.12 · Guerreiro, Monge, Ladino e Paladino</p>
   {!player && !chosenPlayer ? <section aria-label="Escolher jogador">
    <p>Escolha como entrar na sala.</p>
    <div className="buttons"><button onClick={() => choosePlayer(1)}>Player 1</button><button onClick={() => choosePlayer(2)}>Player 2</button><button className="secondary" onClick={() => enter("spectator")}>Espectador</button></div>
@@ -154,6 +155,7 @@ export default function Home() {
       })}
      </div>
      <FloatingPanel room={room} player={player} locked={locked} onAim={(card, targets) => act({ type: "aim", card, targets })} />
+     <HolyPowerPanel room={room} player={player} locked={locked} onSave={(card, amount) => act({ type: "holy_spend", card, amount })} />
     </div>}
     {player !== "spectator" && <div className="actions">
      {!room.revealed && !own?.ready && filled === 5 && missingRequired.length === 0 && <button className="ready-button" disabled={busy} onClick={() => act({ type: "ready" })}>{busy ? "Salvando…" : "Pronto"}</button>}

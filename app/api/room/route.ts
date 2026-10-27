@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   let input;
   try { input = JSON.parse(raw); } catch { return reply({ error: "JSON inválido." }, 400); }
   if (input?.player === "spectator") return reply({ error: "Espectadores só podem assistir." }, 403);
-  if (!input || (input.player !== 1 && input.player !== 2) || !Number.isInteger(input.round) || !Number.isInteger(input.match) || !input.action || !["aim", "select_deck", "place", "ready", "reset", "restart"].includes(input.action.type)) return reply({ error: "Pedido inválido. Atualize a página se necessário." }, 400);
+  if (!input || (input.player !== 1 && input.player !== 2) || !Number.isInteger(input.round) || !Number.isInteger(input.match) || !input.action || !["holy_spend", "aim", "select_deck", "place", "ready", "reset", "restart"].includes(input.action.type)) return reply({ error: "Pedido inválido. Atualize a página se necessário." }, 400);
   const player: Player = input.player;
   for (let attempt = 0; attempt < 6; attempt++) {
    const room = await readRoom();

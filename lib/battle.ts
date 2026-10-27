@@ -1,6 +1,7 @@
 import { definitionFor, type CardDefinition } from "./cards.ts";
 import type { Player, Slots } from "./game";
-import { emptySlotCounters, emptyFloating, type SlotCounters, type FloatingState } from "./targeting.ts";
+import { emptySlotCounters, emptyFloating, validateTargets, type SlotCounters, type FloatingState } from "./targeting.ts";
+import { emptyHolyPower, emptyHolySpending, holyEffectValue, type HolyPower, type HolySpending } from "./holy-power.ts";
 
 export const INITIAL_LIFE = 10;
 export type Life = Record<Player, number>;
@@ -12,8 +13,9 @@ export type SlotCombat = {
  incoming: Record<Player, Bonus>; outgoing: Record<Player, Bonus>;
  deflected: Life; reflected: Life;
  bleedingTaken: Life; currentDamageDealt: Life;
+ defenseUsed: Life;
 };
-export type SlotResolution = SlotCombat & { slot: number; lifeAfter: Life; bleedingApplied: { player: Player; target: number; added: number; total: number; doubled: boolean }[] };
+export type SlotResolution = SlotCombat & { slot: number; lifeAfter: Life; holyPowerAfter: HolyPower; holyPowerGained: HolyPower; holyPowerSpent: HolyPower; holyValue: HolyPower; bleedingApplied: { player: Player; target: number; added: number; total: number; doubled: boolean }[] };
 const players: Player[] = [1, 2];
 const opponent = (player: Player): Player => player === 1 ? 2 : 1;
 export const emptyBonuses = (): Record<Player, Bonus> => ({ 1: { damage: 0, defense: 0 }, 2: { damage: 0, defense: 0 } });
@@ -35,6 +37,7 @@ function settleDamage(damage: Life, defense: Life, deflect: Record<Player, boole
  const reflected: Life = { 1: 0, 2: 0 };
  const bleedingTaken: Life = { 1: 0, 2: 0 };
  const currentDamageDealt: Life = { 1: 0, 2: 0 };
+ const defenseUsed: Life = { 1: 0, 2: 0 };
  // Pending bleed consumes defense first; every point of defense is used once.
  let pending: DamagePacket[] = players.map(player => ({ from: opponent(player), to: player, amount: bleeding[player], kind: "bleeding" }));
  for (const player of players) {
@@ -49,6 +52,7 @@ function settleDamage(damage: Life, defense: Life, deflect: Record<Player, boole
    for (const packet of pending.filter(packet => packet.to === player)) {
     const blocked = Math.min(packet.amount, remainingDefense[player]);
     remainingDefense[player] -= blocked;
+    defenseUsed[player] += blocked;
     const amount = packet.amount - blocked;
     if (!amount) continue;
     if (deflect[player]) deflected[player] += amount;
@@ -65,10 +69,10 @@ function settleDamage(damage: Life, defense: Life, deflect: Record<Player, boole
   }
   pending = next;
  }
- return { damageTaken, deflected, reflected, bleedingTaken, currentDamageDealt };
+ return { damageTaken, deflected, reflected, bleedingTaken, currentDamageDealt, defenseUsed };
 }
 
-export function resolveSlot(cards: Record<Player, CardDefinition | undefined>, incoming = emptyBonuses(), reflectionFromNextSlot: Record<Player, boolean> = { 1: false, 2: false }, context: { bleeding?: Life; floatingDamage?: Life } = {}): SlotCombat {
+export function resolveSlot(cards: Record<Player, CardDefinition | undefined>, incoming = emptyBonuses(), reflectionFromNextSlot: Record<Player, boolean> = { 1: false, 2: false }, context: { bleeding?: Life; floatingDamage?: Life; floatingDefense?: Life } = {}): SlotCombat {
  const stunned: Record<Player, boolean> = {
   1: !!cards[2]?.effects.some(effect => effect.kind === "stun"),
   2: !!cards[1]?.effects.some(effect => effect.kind === "stun"),
@@ -87,7 +91,7 @@ export function resolveSlot(cards: Record<Player, CardDefinition | undefined>, i
    target[effect.kind] += effect.amount;
   }
  }
- const defense: Life = { 1: incoming[1].defense + current[1].defense, 2: incoming[2].defense + current[2].defense };
+ const defense: Life = { 1: incoming[1].defense + current[1].defense + (context.floatingDefense?.[1] ?? 0), 2: incoming[2].defense + current[2].defense + (context.floatingDefense?.[2] ?? 0) };
  const damage: Life = {
   1: incoming[1].damage + (context.floatingDamage?.[1] ?? 0) + (riposte[1] ? 0 : current[1].damage),
   2: incoming[2].damage + (context.floatingDamage?.[2] ?? 0) + (riposte[2] ? 0 : current[2].damage),
@@ -119,7 +123,7 @@ export function resolveSlot(cards: Record<Player, CardDefinition | undefined>, i
  };
 }
 
-export function resolveBattle(slots: Record<Player, Slots>, startingLife: Life, options: { bleeding?: SlotCounters; floating?: FloatingState } = {}): { life: Life; result: MatchResult; log: SlotResolution[]; bleeding: SlotCounters } {
+export function resolveBattle(slots: Record<Player, Slots>, startingLife: Life, options: { bleeding?: SlotCounters; floating?: FloatingState; holyPower?: HolyPower; holySpending?: HolySpending } = {}): { life: Life; result: MatchResult; log: SlotResolution[]; bleeding: SlotCounters; holyPower: HolyPower } {
  let life = structuredClone(startingLife);
  let result = resultFor(life);
  let incoming = emptyBonuses();
@@ -130,19 +134,46 @@ export function resolveBattle(slots: Record<Player, Slots>, startingLife: Life, 
  const nextBleeding = emptySlotCounters();
  const floating = options.floating ?? emptyFloating();
  const floatingDamage = emptySlotCounters();
+ const floatingDefense = emptySlotCounters();
+ const holyPower = structuredClone(options.holyPower ?? emptyHolyPower());
+ const holySpending = options.holySpending ?? emptyHolySpending();
  for (const player of players) {
   for (let source = 0; source < 5; source++) {
    const card = cardAt(player, source);
-   if (card?.floating?.effect !== "damage" || cardAt(opponent(player), source)?.effects.some(effect => effect.kind === "stun")) continue;
+   if (!card?.floating) continue;
    const targets = floating[player][slots[player][source]!] ?? Array(card.floating.points).fill(source);
+   validateTargets(card, source, targets);
+   if (card.floating.effect !== "damage" || cardAt(opponent(player), source)?.effects.some(effect => effect.kind === "stun")) continue;
    for (const target of targets) floatingDamage[player][target] += 1;
   }
  }
  for (let slot = 0; slot < 5 && !result; slot++) {
-  const combat = resolveSlot({
-   1: cardAt(1, slot),
-   2: cardAt(2, slot),
-  }, incoming, { 1: reflectionAt(1, slot + 1), 2: reflectionAt(2, slot + 1) }, { bleeding: { 1: bleeding[1][slot], 2: bleeding[2][slot] }, floatingDamage: { 1: floatingDamage[1][slot], 2: floatingDamage[2][slot] } });
+  const holyPowerSpent = emptyHolyPower();
+  const holyPowerGained = emptyHolyPower();
+  const holyValue = emptyHolyPower();
+  const activeCards: Record<Player, CardDefinition | undefined> = { 1: cardAt(1, slot), 2: cardAt(2, slot) };
+  for (const player of players) {
+   const card = activeCards[player];
+   if (!card?.holyPower?.scaling || cardAt(opponent(player), slot)?.effects.some(effect => effect.kind === "stun")) continue;
+   holyPowerSpent[player] = Math.min(holySpending[player][slots[player][slot]!] ?? 0, holyPower[player]);
+   holyPower[player] -= holyPowerSpent[player];
+   holyValue[player] = holyEffectValue(holyPowerSpent[player]);
+   if (card.holyPower.scaling === "defense" && card.floating) {
+    const target = floating[player][slots[player][slot]!]?.[0] ?? slot;
+    floatingDefense[player][target] += holyValue[player];
+   } else activeCards[player] = { ...card, effects: [...card.effects, { kind: "damage", amount: holyValue[player], slot: "current" }] };
+  }
+  const combat = resolveSlot(activeCards, incoming, { 1: reflectionAt(1, slot + 1), 2: reflectionAt(2, slot + 1) }, { bleeding: { 1: bleeding[1][slot], 2: bleeding[2][slot] }, floatingDamage: { 1: floatingDamage[1][slot], 2: floatingDamage[2][slot] }, floatingDefense: { 1: floatingDefense[1][slot], 2: floatingDefense[2][slot] } });
+  for (const player of players) {
+   const card = cardAt(player, slot);
+   if (!card?.holyPower?.gain || combat.stunned[player]) continue;
+   const hasAttack = card.effects.some(effect => effect.kind === "damage" && effect.slot === "current");
+   const hasDefense = card.effects.some(effect => effect.kind === "defense" && effect.slot === "current");
+   if ((!hasAttack && !hasDefense) || (hasAttack && combat.currentDamageDealt[player] > 0) || (hasDefense && combat.defenseUsed[player] > 0)) {
+    holyPowerGained[player] = card.holyPower.gain;
+    holyPower[player] += holyPowerGained[player];
+   }
+  }
   const bleedingApplied: SlotResolution["bleedingApplied"] = [];
   for (const player of players) {
    const card = cardAt(player, slot);
@@ -156,10 +187,10 @@ export function resolveBattle(slots: Record<Player, Slots>, startingLife: Life, 
   }
   // Apply both directions before checking defeat: no Player 1/Player 2 priority.
   life = { 1: Math.max(0, life[1] - combat.damageTaken[1]), 2: Math.max(0, life[2] - combat.damageTaken[2]) };
-  log.push({ ...combat, slot: slot + 1, lifeAfter: structuredClone(life), bleedingApplied });
+  log.push({ ...combat, slot: slot + 1, lifeAfter: structuredClone(life), bleedingApplied, holyPowerAfter: structuredClone(holyPower), holyPowerGained, holyPowerSpent, holyValue });
   result = resultFor(life);
   incoming = combat.outgoing;
  }
  // Outgoing effects from slot 5 are discarded here, never carried to another round.
- return { life, result, log, bleeding: nextBleeding };
+ return { life, result, log, bleeding: nextBleeding, holyPower };
 }

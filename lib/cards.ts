@@ -1,9 +1,10 @@
 import type { Player } from "./game";
-export type DeckId = "warrior" | "monk" | "rogue";
+export type DeckId = "warrior" | "monk" | "rogue" | "paladin";
 export const deckOptions: readonly { id: DeckId; name: string; description: string }[] = [
  { id: "warrior", name: "Guerreiro", description: "Dano, defesa, Atordoamento e Ripostar." },
  { id: "monk", name: "Monge", description: "Defesa, Ripostar, Defletir e Refletir." },
  { id: "rogue", name: "Ladino", description: "Sangramento, Flutuando e Atordoamento." },
+ { id: "paladin", name: "Paladino", description: "Poder Sagrado, dano e defesa." },
 ];
 export const classNameFor = (id: DeckId) => deckOptions.find(deck => deck.id === id)!.name;
 export const isDeckId = (value: unknown): value is DeckId => deckOptions.some(deck => deck.id === value);
@@ -25,7 +26,8 @@ export type CardDefinition = {
  damageCondition?: "opponent_deals_damage";
  nextSlotCondition?: "riposte_triggered";
  bleeding?: { amount: number; doubleAfterAdding?: boolean };
- floating?: { effect: "damage" | "bleeding"; range: number; points: number };
+ floating?: { effect: "damage" | "defense" | "bleeding"; range: number; points: number; direction?: "forward" };
+ holyPower?: { gain?: number; scaling?: "damage" | "defense" };
  fatigue?: { rounds: number; reference: "round_placed_and_revealed" };
 };
 export type DeckCard = { instanceId: string; definitionId: string };
@@ -85,7 +87,20 @@ export const rogueCards: readonly CardDefinition[] = [
  { id: "rogue-10", classId: "rogue", number: 10, text: { main: ["+1 dano"], footer: ["Sangramento · Flutuando 3", "Adiciona 1 marcador e dobra os do destino.", "(Fadiga 2)"] }, effects: [{ kind: "damage", amount: 1, slot: "current" }], bleeding: { amount: 1, doubleAfterAdding: true }, floating: { effect: "bleeding", range: 3, points: 1 }, fatigue: { rounds: 2, reference: "round_placed_and_revealed" } },
 ];
 
-const catalog = { warrior: warriorCards, monk: monkCards, rogue: rogueCards };
+export const paladinCards: readonly CardDefinition[] = [
+ { id: "paladin-01", classId: "paladin", number: 1, text: { main: ["Não age"], footer: [] }, effects: [{ kind: "no_action" }] },
+ { id: "paladin-02", classId: "paladin", number: 2, text: { main: ["Não age"], footer: [] }, effects: [{ kind: "no_action" }] },
+ { id: "paladin-03", classId: "paladin", number: 3, text: { main: ["+1 dano"], footer: ["+1 Poder Sagrado"] }, effects: [{ kind: "damage", amount: 1, slot: "current" }], holyPower: { gain: 1 } },
+ { id: "paladin-04", classId: "paladin", number: 4, text: { main: ["+1 dano"], footer: ["+1 Poder Sagrado"] }, effects: [{ kind: "damage", amount: 1, slot: "current" }], holyPower: { gain: 1 } },
+ { id: "paladin-05", classId: "paladin", number: 5, text: { main: ["+1 def"], footer: ["+1 Poder Sagrado"] }, effects: [{ kind: "defense", amount: 1, slot: "current" }], holyPower: { gain: 1 } },
+ { id: "paladin-06", classId: "paladin", number: 6, text: { main: ["+1 def"], footer: ["+1 Poder Sagrado"] }, effects: [{ kind: "defense", amount: 1, slot: "current" }], holyPower: { gain: 1 } },
+ { id: "paladin-07", classId: "paladin", number: 7, text: { main: ["+X dano"], footer: ["Escolha quanto Poder Sagrado gastar.", "X = metade do gasto, arredondada para baixo.", "(Fadiga 1)"] }, effects: [], holyPower: { scaling: "damage" }, fatigue: { rounds: 1, reference: "round_placed_and_revealed" } },
+ { id: "paladin-08", classId: "paladin", number: 8, text: { main: ["+4 Poder Sagrado"], footer: ["(Fadiga 2)"] }, effects: [], holyPower: { gain: 4 }, fatigue: { rounds: 2, reference: "round_placed_and_revealed" } },
+ { id: "paladin-09", classId: "paladin", number: 9, text: { main: ["+3 def → +3 def"], footer: ["(Fadiga 2)"] }, effects: [{ kind: "defense", amount: 3, slot: "current" }, { kind: "defense", amount: 3, slot: "next" }], fatigue: { rounds: 2, reference: "round_placed_and_revealed" } },
+ { id: "paladin-10", classId: "paladin", number: 10, text: { main: ["+X def"], footer: ["Flutuando 1: atual ou seguinte.", "X = metade do gasto de Poder Sagrado, arredondada para baixo.", "(Fadiga 2)"] }, effects: [], holyPower: { scaling: "defense" }, floating: { effect: "defense", range: 1, points: 1, direction: "forward" }, fatigue: { rounds: 2, reference: "round_placed_and_revealed" } },
+];
+
+const catalog = { warrior: warriorCards, monk: monkCards, rogue: rogueCards, paladin: paladinCards };
 const definitions = new Map(Object.values(catalog).flat().map(card => [card.id, card]));
 for (const cards of Object.values(catalog)) validateDeck(cards);
 const warriorDecks: Record<Player, readonly DeckCard[]> = {

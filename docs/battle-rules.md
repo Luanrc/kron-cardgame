@@ -30,3 +30,7 @@ lib/battle.ts contém funções puras de confronto e resolução. lib/game.ts ge
 ## Ladino
 
 Distribuições de Flutuando são validadas antes de Pronto e entram nos destinos na resolução, mantendo sua origem para Atordoamento. Sangramento pendente entra como dano não refletível; cada marcador é consumido nesta rodada. Defesa cobre primeiro o Sangramento pendente, depois o ataque atual e os demais bônus, sempre com um único orçamento de defesa por slot. O resolvedor identifica o dano da própria carta para impedir que ela gere marcadores por dano vindo de outra fonte. Sangramentos novos são agendados para a próxima rodada; a carta 10 adiciona e dobra apenas esse conjunto. Detalhes em rogue-rules.md.
+
+## Paladino
+
+Antes do confronto de cada slot, uma carta ativa com X paga o gasto escolhido, limitado ao saldo real, e transforma metade desse valor em dano ou defesa, arredondando para baixo. Atordoamento impede o gasto e o efeito. A defesa flutuada pode atingir apenas o slot atual ou o seguinte; o saldo é o da origem. Após calcular o confronto, ações de geração ganham Poder Sagrado somente se tiveram êxito: dano próprio real ou defesa própria utilizada. A carta de +4 gera quando age. Os ganhos ficam disponíveis nos slots posteriores. O saldo passa entre rodadas; uma nova partida o zera. Detalhes em paladin-rules.md.
