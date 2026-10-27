@@ -1,6 +1,8 @@
 # Kron Card Game
 
-Protótipo 0.4 de um cardgame online 1v1. Este diretório é o projeto do game; não confundir com Kron RPG.
+Protótipo 0.5 de um cardgame online 1v1. Este diretório é o projeto do game; não confundir com Kron RPG.
+
+Mouse over nas cartas: prévia ampliada da mão e de cartas ocupando slots, inclusive no modo Espectador. A prévia aparece ao lado sem alterar o campo e sem ser cortada pelo contêiner; cartas ocultas continuam ocultas. Foco de teclado também abre a prévia. Sair da carta, perder foco, pressionar Escape ou rolar fecha a prévia. Slots vazios não ampliam. Nenhuma mudança nas regras ou no estado compartilhado.
 
 Entrada Espectador: acompanha a mesma sala, com Player 2 em cima e Player 1 embaixo. Não recebe mão e não tem ações de jogo, Pronto ou Nova rodada. Vê cartas viradas para baixo até ambos estarem prontos; depois vê os valores revelados. A API também omite mãos da visão de espectador e rejeita ações enviadas nessa função. Atualiza a cada segundo como os jogadores.
 

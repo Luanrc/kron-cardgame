@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { cardsFor, type GameAction, type Player, type Viewer, type RoomView } from "../lib/game";
+import { CardZoom } from "../components/card-zoom";
 
 export default function Home() {
  const [player, setPlayer] = useState<Viewer | null>(null);
@@ -55,7 +56,7 @@ export default function Home() {
  const filled = room?.ownSlots.filter(Boolean).length ?? 0;
  const locked = busy || !room || !!own?.ready;
  return <main>
-  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.4</p>
+  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.5</p>
   {!player ? <section aria-label="Escolher jogador">
    <p>Escolha como entrar na sala.</p>
    <div className="buttons"><button onClick={() => enter(1)}>Player 1</button><button onClick={() => enter(2)}>Player 2</button><button className="secondary" onClick={() => enter("spectator")}>Espectador</button></div>
@@ -79,8 +80,10 @@ export default function Home() {
            const label = "Player " + side + ", slot " + (slot + 1);
            const content = <><span className="slot-number">Slot {slot + 1}</span><span className="card-face">{card === null ? "Vazio" : room.revealed ? card : "Virada"}</span></>;
            const className = "card-slot " + (card ? room.revealed ? "face-up" : "face-down" : "empty-slot");
-           return side === player ? <button key={slot} className={className} disabled={locked || (!selected && !card)} aria-label={label + (card ? room.revealed ? ", carta " + card : ", carta virada" : ", vazio")} onClick={() => act({ type: "place", slot, card: selected })}>{content}</button>
-            : <div key={slot} className={className} aria-label={label + (card ? room.revealed ? ", carta " + card : ", carta virada" : ", vazio")}>{content}</div>;
+           return <CardZoom key={slot} side={side} value={room.revealed ? card ?? "" : "Virada"} caption={"Player " + side + " · Slot " + (slot + 1)} enabled={card !== null} hiddenCard={!room.revealed} focusable={side !== player || locked}>
+            {side === player ? <button className={className} disabled={locked || (!selected && !card)} aria-label={label + (card ? room.revealed ? ", carta " + card : ", carta virada" : ", vazio")} onClick={() => act({ type: "place", slot, card: selected })}>{content}</button>
+            : <div className={className} aria-label={label + (card ? room.revealed ? ", carta " + card : ", carta virada" : ", vazio")}>{content}</div>}
+           </CardZoom>;
           })}
          </div>
         </div>;
@@ -94,9 +97,9 @@ export default function Home() {
      <div className="hand-cards">
       {cardsFor(player).map(card => {
        const slot = room.ownSlots.indexOf(card);
-       return <button key={card} className={"hand-card " + (selected === card ? "selected" : "")} disabled={locked || slot !== -1} aria-pressed={selected === card} aria-label={"Carta " + card + (slot !== -1 ? ", no slot " + (slot + 1) : "")} onClick={() => setSelected(selected === card ? null : card)}>
+       return <CardZoom key={card} side={player} value={card} caption="Sua mão" focusable={locked || slot !== -1}><button className={"hand-card " + (selected === card ? "selected" : "")} disabled={locked || slot !== -1} aria-pressed={selected === card} aria-label={"Carta " + card + (slot !== -1 ? ", no slot " + (slot + 1) : "")} onClick={() => setSelected(selected === card ? null : card)}>
         <span>{card}</span>{slot !== -1 && <small>Slot {slot + 1}</small>}
-       </button>;
+       </button></CardZoom>;
       })}
      </div>
     </div>}

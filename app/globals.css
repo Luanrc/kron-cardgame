@@ -43,6 +43,14 @@ button.card-slot:hover:not(:disabled) { background: var(--pale); border-color: v
 .hand-card:hover:not(:disabled) { background: var(--pale); }
 .hand-card:disabled { border-color: #ccc; background: #f1f1f1; color: #888; }
 .actions { margin-top: 18px; }
+.card-zoom { min-width: 0; }
+.card-zoom > .card-slot, .card-zoom > .hand-card { width: 100%; }
+.card-zoom:focus-visible { outline: 3px solid #3677c9; outline-offset: 3px; }
+.card-preview { position: fixed; z-index: 100; pointer-events: none; width: 176px; height: 264px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; border: 3px solid var(--accent); border-radius: 4px; background: var(--pale); color: #222; box-shadow: 0 6px 20px #0003; }
+.card-preview.preview-hidden { background: #e8ebee; }
+.preview-caption { font-size: 13px; }
+.preview-value { font-size: 48px; font-weight: bold; overflow-wrap: anywhere; }
+.preview-hidden .preview-value { font-size: 26px; }
 .ready-button { background: #2f6948; border-color: #2f6948; }
 .ready-button:hover:not(:disabled) { background: #235638; }
 @media (max-width: 600px) { .hand-cards { grid-template-columns: repeat(5, minmax(0, 1fr)); } .field-status { display: inline-block; } }
