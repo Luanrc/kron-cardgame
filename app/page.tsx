@@ -12,6 +12,7 @@ import { FatiguePanel } from "../components/fatigue-panel";
 import { LifePool, BattleSummary } from "../components/battle-summary";
 import { FloatingPanel, FloatingSummary } from "../components/floating-panel";
 import { HolyPowerPanel } from "../components/holy-power-panel";
+import { QuickTutorial } from "../components/quick-tutorial";
 
 export default function Home() {
  const [player, setPlayer] = useState<Viewer | null>(null);
@@ -124,10 +125,11 @@ export default function Home() {
  const required = player && player !== "spectator" && room ? room.noActionOptional[player] ? [] : requiredCardsFor(player, room.decks[player]) : [];
  const missingRequired = required.filter(card => !room?.ownSlots.includes(card));
  return <main>
-  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.15 · Preparação local · Escolha sua classe, prepare seus cinco slots.</p>
+  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.15 · Escolha sua classe, prepare seus cinco slots.</p>
   {!player && !chosenPlayer ? <section aria-label="Escolher jogador">
    <p>Escolha como entrar na sala.</p>
    <div className="buttons"><button disabled={busy} onClick={() => choosePlayer(1)}>Player 1</button><button disabled={busy} onClick={() => choosePlayer(2)}>Player 2</button><button className="secondary" disabled={busy} onClick={() => enter("spectator")}>Espectador</button></div>
+   <QuickTutorial />
    <div className="lobby-reset"><button className="secondary reset-button" disabled={busy} onClick={fullReset}>{busy ? "Resetando…" : "Resetar partida"}</button><span>Limpa a sala para os dois jogadores.</span></div>
    {notice && <p className="notice" role="status">{notice}</p>}
    {error && <p className="error" role="alert">{error}</p>}
