@@ -4,7 +4,7 @@ import { compactCardText } from "../lib/card-presentation";
 
 export function FramedCard({ card }: { card: CardDefinition }) {
  const brief = compactCardText(card);
- const rules: string[] = [];
+ const rules: string[] = [...card.text.main, ...card.text.footer].filter(line => !brief.main.includes(line) && !brief.footer.includes(line));
  if (isMandatoryCard(card)) rules.push("Deve ser jogada a cada rodada. Não realiza ações e não recebe Fadiga.");
  if (card.effects.some(effect => effect.kind === "stun")) rules.push("Impede a carta adversária deste slot de agir. Bônus vindos de outro slot são preservados.");
  if (card.damageCondition) rules.push("Ripostar: só causa dano se você sofrer dano neste slot. Duas Ripostas não se ativam.");

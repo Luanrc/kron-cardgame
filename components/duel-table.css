@@ -1,0 +1,32 @@
+.duel-table .mock-right { height: auto; }
+.duel-table .mock-header nav button { display: inline-flex; align-items: center; gap: 5px; }
+.duel-table .mock-slot { position: relative; }
+.duel-table .mock-slot.turned { border-color: var(--accent); background: var(--pale); }
+.duel-table .mock-slot.occupied:not(.turned) { border-color: var(--accent); background: color-mix(in srgb, var(--pale) 65%, #192627); }
+.duel-table .mock-row > .card-zoom > div.mock-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 8px 8px; }
+.duel-table .mock-slot .card-copy { font-size: 11px; }
+.duel-table .mock-slot .card-footer { font-size: 9px; }
+.duel-table .mock-slot .creature-copy { font-size: 11px; line-height: 1.35; }
+.duel-table .mock-slot .creature-overlay { font-size: 8px; margin-top: 4px; }
+.duel-table .mock-hand-card { border-color: var(--accent); background: var(--pale); }
+.duel-table .mock-hand-symbol { color: var(--accent); background: #172322; }
+.duel-table .duel-resource { display: block; color: var(--accent); font-size: 10px; }
+.duel-phase { font-size: 11px; color: #a8b8ad; line-height: 1.6; margin-top: 15px; }
+.duel-fatigue-entry { padding: 7px 0; font-size: 10px; border-bottom: 1px solid #35443b; }
+.duel-fatigue-entry span, .duel-fatigue-entry small { display: block; }
+.duel-bleeding { position: absolute; bottom: 2px; left: 3px; right: 3px; background: #492d32; color: #edb1ae; font-size: 8px; line-height: 1.2; padding: 2px; }
+.duel-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-bottom: 20px; }
+.duel-controls > * { margin: 0; border: 1px solid #3f5048; border-radius: 5px; padding: 14px; background: #1b2a29; min-width: 0; }
+.duel-controls:empty { display: none; }
+.duel-controls h3, .duel-controls legend { font-size: 13px; }
+.duel-controls p, .duel-controls label, .duel-controls li { font-size: 11px; }
+.duel-controls .floating-choices { gap: 9px; }
+.duel-controls button, .duel-controls select, .duel-controls input { font-size: 12px; }
+.duel-details { margin: 16px 0; font-size: 12px; color: #b4c3b7; }
+.duel-details summary { cursor: pointer; padding: 10px 0; }
+.duel-error { border: 1px solid #794c4c; padding: 10px; font-size: 13px; }
+.duel-table .mock-hand-card .card-copy { min-height: 0; overflow: hidden; }
+.duel-table .mock-hand-symbol { height: 24px; flex-basis: 24px; margin-bottom: 4px; }
+.duel-table .mock-hand-card .card-main { flex: initial; }
+.duel-table .mock-hand-tag { flex-shrink: 0; }
+.duel-table .mock-slot .card-copy { min-height: 0; overflow: hidden; }

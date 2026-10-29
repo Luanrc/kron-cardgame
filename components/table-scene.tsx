@@ -1,21 +1,21 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-export function TableScene({ occupied, activeSlot, reducedMotion, enabled }: {
- occupied: boolean[][]; activeSlot: number; reducedMotion: boolean; enabled: boolean;
+export function TableScene({ occupied, activeSlot, reducedMotion, enabled, colors = [0x779a84, 0xbb9770] }: {
+ occupied: boolean[][]; activeSlot: number; reducedMotion: boolean; enabled: boolean; colors?: [number, number];
 }) {
  const host = useRef<HTMLDivElement>(null);
  const state = useRef({ occupied, activeSlot, reducedMotion });
- const [supported, setSupported] = useState(true);
+ const [topColor, bottomColor] = colors;
  useEffect(() => { state.current = { occupied, activeSlot, reducedMotion }; }, [occupied, activeSlot, reducedMotion]);
  useEffect(() => {
   if (!host.current || !enabled) return;
   const element = host.current;
   let renderer: THREE.WebGLRenderer;
   try { renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "low-power" }); }
-  catch { setSupported(false); return; }
-  setSupported(true);
+  catch { element.classList.add("canvas-fallback"); return; }
+  element.classList.remove("canvas-fallback");
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-5, 5, 2, -2, 0.1, 40);
   camera.position.set(0, 0, 14);
@@ -32,8 +32,8 @@ export function TableScene({ occupied, activeSlot, reducedMotion, enabled }: {
    const result = new THREE.MeshStandardMaterial({ color, roughness: .78, metalness }); materials.push(result); return result;
   };
   const slate = material(0x263637), edge = material(0x4a4940, .35), inset = material(0x142326);
-  const sides = [material(0x38685d, .1), material(0x78503a, .1)];
-  const rings = [material(0x779a84, .45), material(0xbb9770, .45)];
+  const sides = [topColor, bottomColor].map(color => { const surface = material(color, .1); surface.color.multiplyScalar(.42); return surface; });
+  const rings = [topColor, bottomColor].map(color => material(color, .45));
   function slab(width: number, height: number, depth: number, mat: THREE.Material, radius = .1) {
    const w = width / 2, h = height / 2;
    const shape = new THREE.Shape();
@@ -105,6 +105,6 @@ export function TableScene({ occupied, activeSlot, reducedMotion, enabled }: {
    renderer.setAnimationLoop(null); geometries.forEach(value => value.dispose()); materials.forEach(value => value.dispose());
    renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
   };
- }, [enabled, reducedMotion]);
- return <div className={"mock-table-canvas" + (!supported || !enabled ? " canvas-fallback" : "")} ref={host} aria-hidden="true" />;
+ }, [enabled, reducedMotion, topColor, bottomColor]);
+ return <div className={"mock-table-canvas" + (!enabled ? " canvas-fallback" : "")} ref={host} aria-hidden="true" />;
 }

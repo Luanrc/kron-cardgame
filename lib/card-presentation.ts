@@ -12,4 +12,12 @@ const compact: Record<string, CardDefinition["text"]> = {
  "paladin-07": { main: ["+X dano"], footer: ["X = gasto ÷ 2", "(Fadiga 1)"] },
  "paladin-10": { main: ["+X def"], footer: ["Flutuando 1 →", "X = gasto ÷ 2", "(Fadiga 2)"] },
 };
-export const compactCardText = (card: CardDefinition) => card.brief ?? compact[card.id] ?? card.text;
+export function compactCardText(card: CardDefinition): CardDefinition["text"] {
+ if (card.summon) return { main: [card.summon.creature === "wolf" ? "Invocar Lobo" : "Invocar Urso"], footer: [
+  `Vida ${card.summon.life} · +${card.summon.damage} dano`,
+  ...(card.summon.defense ? [`+${card.summon.defense} def · Ripostar`] : []),
+  `Fadiga ${card.fatigue?.rounds ?? 0}`,
+ ] };
+ if (card.fortify) return { main: [`+${card.fortify.amount} ${({damage:"dano",defense:"def",life:"vida"})[card.fortify.stat]} à criatura`], footer: [card.fortify.duration === "round" ? "Nesta rodada" : "Permanente", `Fadiga ${card.fatigue?.rounds ?? 0}`] };
+ return card.brief ?? compact[card.id] ?? card.text;
+}
