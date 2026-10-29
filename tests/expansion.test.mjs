@@ -1,3 +1,4 @@
+import { advanceRound } from "./round-helpers.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { catalog, deckFor, initialLifeFor, definitionFor } from "../lib/cards.ts";
@@ -14,7 +15,7 @@ function play(state, one, two) {
 }
 
 test("Expansion catalogs preserve all playable cards, life totals, duplicates and corrected summons", () => {
- for (const [deck, count, life] of [["gunner",10,10],["ranger",10,10],["guardian",10,12],["mage",12,8],["barbarian",10,11],["summoner",11,11]]) {
+ for (const [deck, count, life] of [["gunner",10,10],["ranger",10,10],["guardian",10,12],["mage",12,8],["barbarian",10,9],["summoner",11,11]]) {
   assert.equal(catalog[deck].length, count); assert.equal(initialLifeFor(deck), life);
   assert.equal(deckFor(1, deck).length, count); assert.equal(deckFor(2, deck).length, count);
   assert.equal(catalog[deck].filter(card => card.effects.some(effect => effect.kind === "no_action")).length, 2);
@@ -22,7 +23,7 @@ test("Expansion catalogs preserve all playable cards, life totals, duplicates an
  assert.equal(catalog.mage[11].floating, undefined); assert.equal(catalog.mage[11].fatigue.rounds, 2);
  assert.equal(catalog.barbarian[9].fatigue.rounds, 3);
  assert.deepEqual(catalog.summoner[3].summon, { creature:"wolf",life:2,damage:1,defense:0 });
- assert.deepEqual(catalog.summoner[4].summon, { creature:"bear",life:3,damage:1,defense:1,riposte:true });
+ assert.deepEqual(catalog.summoner[4].summon, { creature:"bear",life:3,damage:1,defense:1 });
  assert.equal(summonerRules.length, 3); assert.ok(catalog.summoner.every(card => !card.text.main.includes("REGRA")));
  assert.equal(chosen("summoner").life[1],11);
 });
@@ -92,22 +93,22 @@ test("Barbarian uses simultaneous received damage, defense conditions and lost l
  assert.equal(resolveSlot(definitions("barbarian-1-7","D")).damageTaken[2],3);
  assert.deepEqual(resolveSlot(definitions("barbarian-1-7","barbarian-2-7")).damageTaken,{1:0,2:0});
  assert.equal(resolveSlot(definitions("barbarian-1-5","C")).damageTaken[2],0);
- const one=resolveBattle(fields(["barbarian-1-6"],["D"]),{1:7,2:10});assert.equal(one.life[2],9);
- const all=resolveBattle(fields(["barbarian-1-9"],["D"]),{1:7,2:10});assert.equal(all.life[2],6);
+ const one=resolveBattle(fields(["barbarian-1-6"],["D"]),{1:7,2:10});assert.equal(one.life[2],10);
+ const all=resolveBattle(fields(["barbarian-1-9"],["D"]),{1:7,2:10});assert.equal(all.life[2],8);
 });
 
 test("Fury removes No action obligations only next round and has three rounds of fatigue", () => {
  let state=play(chosen("barbarian"),["barbarian-1-1","barbarian-1-2","barbarian-1-10","barbarian-1-3","barbarian-1-4"],["A","B","C","D","E"]);
  assert.equal(roomView(state,1,1).noActionOptional[1],false);
- state=applyAction(state,1,{type:"reset"});assert.equal(roomView(state,1,1).noActionOptional[1],true);assert.ok(isFatigued(state,1,"barbarian-1-10"));
+ state=advanceRound(state);assert.equal(roomView(state,1,1).noActionOptional[1],true);assert.ok(isFatigued(state,1,"barbarian-1-10"));
  assert.equal(state.fatigue[1]["barbarian-1-10"].availableRound,5);
  state=play(state,["barbarian-1-3","barbarian-1-4","barbarian-1-5","barbarian-1-6","barbarian-1-7"],["A","B","C","D","E"]);
- state=applyAction(state,1,{type:"reset"});assert.equal(roomView(state,1,1).noActionOptional[1],false);
+ state=advanceRound(state);assert.equal(roomView(state,1,1).noActionOptional[1],false);
 });
 
 test("Premonition requires an early locked No action choice and leaks no slot to spectators", () => {
  let state=play(chosen("mage"),["mage-1-1","mage-1-2","mage-1-10","mage-1-3","mage-1-5"],["A","B","C","D","E"]);
- state=applyAction(state,1,{type:"reset"});assert.deepEqual(state.visions[1],{round:2,slot:null});
+ state=advanceRound(state);assert.deepEqual(state.visions[1],{round:2,slot:null});
  assert.throws(()=>applyAction(state,2,{type:"place",slot:0,card:"D"}),/primeiro/);
  state=applyAction(state,2,{type:"foretell",slot:3});
  assert.throws(()=>applyAction(state,2,{type:"place",slot:3,card:null}),/travado/);
@@ -121,7 +122,7 @@ test("Premonition requires an early locked No action choice and leaks no slot to
 test("Fury prevents Premonition from imposing a No action card next round", () => {
  let state=play(chosen("mage","barbarian"),["mage-1-1","mage-1-2","mage-1-10","mage-1-3","mage-1-5"],["barbarian-2-1","barbarian-2-2","barbarian-2-10","barbarian-2-3","barbarian-2-4"]);
  assert.equal(state.visions[1],null);
- state=applyAction(state,1,{type:"reset"});assert.equal(roomView(state,2,1).noActionOptional[2],true);
+ state=advanceRound(state);assert.equal(roomView(state,2,1).noActionOptional[2],true);
  assert.doesNotThrow(()=>applyAction(state,2,{type:"place",slot:0,card:"barbarian-2-3"}));
  assert.throws(()=>applyAction(state,2,{type:"foretell",slot:0}),/Não há/);
 });

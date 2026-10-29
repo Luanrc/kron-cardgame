@@ -72,7 +72,7 @@ export const barbarianCards: readonly CardDefinition[] = [
 export const summonerCards: readonly CardDefinition[] = [
  idle("summoner", 1), idle("summoner", 2), card("summoner", 3, "+1 dano", [damage(1)]),
  card("summoner", 4, "Invocar criatura: Lobo", [], ["Vida total: 2", "+1 dano"], 1, { summon: { creature: "wolf", life: 2, damage: 1, defense: 0 } }),
- card("summoner", 5, "Invocar criatura: Urso", [], ["Vida total: 3", "+1 def", "+1 dano · Ripostar"], 2, { summon: { creature: "bear", life: 3, damage: 1, defense: 1, riposte: true } }),
+ card("summoner", 5, "Invocar criatura: Urso", [], ["Vida total: 3", "+1 def", "+1 dano"], 2, { summon: { creature: "bear", life: 3, damage: 1, defense: 1 } }),
  card("summoner", 6, "Fortalecer criatura: +1 dano", [], ["Bônus apenas nesta rodada."], 1, { fortify: { stat: "damage", amount: 1, duration: "round" } }),
  card("summoner", 7, "Fortalecer criatura: +1 def", [], ["Bônus apenas nesta rodada."], 1, { fortify: { stat: "defense", amount: 1, duration: "round" } }),
  card("summoner", 8, "Fortalecer criatura: +1 dano", [], ["Bônus permanente."], 2, { fortify: { stat: "damage", amount: 1, duration: "permanent" } }),

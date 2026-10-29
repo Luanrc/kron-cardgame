@@ -1,3 +1,4 @@
+import { advanceRound } from "./round-helpers.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { newGame, applyAction, roomView, resetMatch, normalizeGameState } from "../lib/game.ts";
@@ -18,7 +19,7 @@ test("Rounds preserve damage, restart restores class life, and full reset restor
  state = applyAction(state, 2, { type: "select_deck", deck: "paladin" });
  state.life = { 1: 7, 2: 11 }; state.ready = { 1: true, 2: true };
  assert.throws(() => applyAction(state, 1, { type: "select_deck", deck: "monk" }));
- state = applyAction(state, 1, { type: "reset" });
+ state = advanceRound(state);
  assert.deepEqual(state.life, { 1: 7, 2: 11 });
  assert.deepEqual(normalizeGameState(state).life, state.life);
  state.life = { 1: 0, 2: 3 }; state.result = { type: "win", winner: 2 };

@@ -2,7 +2,7 @@ import { gunnerCards, rangerCards, guardianCards, mageCards, barbarianCards, sum
 import type { Player } from "./game";
 export type DeckId = "warrior" | "monk" | "rogue" | "paladin" | "gunner" | "ranger" | "guardian" | "mage" | "barbarian" | "summoner";
 export const deckOptions: readonly { id: DeckId; name: string; description: string }[] = [
- { id: "warrior", name: "Guerreiro", description: "Combina ataques e defesa. Ripostar reage ao dano sofrido, e Atordoamento impede a carta adversária de agir." },
+ { id: "warrior", name: "Guerreiro", description: "Combina ataques e defesa. Ripostar reage a ataques, mesmo bloqueados pela defesa, e Atordoamento impede a carta adversária de agir." },
  { id: "monk", name: "Monge", description: "Defletir anula o dano do slot. Refletir protege os slots anterior e atual, devolvendo o dano ao adversário." },
  { id: "rogue", name: "Ladino", description: "Sangramento deixa dano para a próxima rodada. Flutuando permite escolher os slots atingidos dentro do alcance da carta." },
  { id: "paladin", name: "Paladino", description: "Acumula Poder Sagrado com ataques e defesas bem-sucedidos. Escolha quanto gastar para fortalecer uma carta com X por rodada." },
@@ -14,7 +14,7 @@ export const deckOptions: readonly { id: DeckId; name: string; description: stri
  { id: "summoner", name: "Invocador", description: "Mantém um Lobo e um Urso nos slots entre rodadas. Fortalecimentos melhoram suas criaturas, e o adversário escolhe quem atacar." },
 ];
 export const isDeckPlayable = (id: DeckId) => isDeckId(id);
-export const initialLifeFor = (id: DeckId): number => ({ warrior: 10, monk: 10, rogue: 9, paladin: 12, gunner: 10, ranger: 10, guardian: 12, mage: 8, barbarian: 11, summoner: 11 })[id];
+export const initialLifeFor = (id: DeckId): number => ({ warrior: 10, monk: 10, rogue: 9, paladin: 12, gunner: 10, ranger: 10, guardian: 12, mage: 8, barbarian: 9, summoner: 11 })[id];
 export const classNameFor = (id: DeckId) => deckOptions.find(deck => deck.id === id)!.name;
 export const isDeckId = (value: unknown): value is DeckId => deckOptions.some(deck => deck.id === value);
 
@@ -53,7 +53,7 @@ export type DeckCard = { instanceId: string; definitionId: string };
 
 export const warriorRulePolicy = {
  nextSlotOverflow: "discard",
- riposte: { requires: "actual_opponent_damage", againstRiposte: "no_effect" },
+ riposte: { requires: "opponent_damage_including_defense_blocked", againstRiposte: "no_effect" },
  fatigue: { unit: "round", starts: "round_after_use" },
 } as const;
 
@@ -102,7 +102,7 @@ export const rogueCards: readonly CardDefinition[] = [
  { id: "rogue-06", classId: "rogue", number: 6, text: { main: ["Atordoamento"], footer: ["(Fadiga 1)"] }, effects: [{ kind: "stun", target: "opposing_card_same_slot" }], fatigue: { rounds: 1, reference: "round_placed_and_revealed" } },
  { id: "rogue-07", classId: "rogue", number: 7, text: { main: ["+1 dano → +1 dano"], footer: ["Sangramento só no slot atual", "(Fadiga 1)"] }, effects: [{ kind: "damage", amount: 1, slot: "current" }, { kind: "damage", amount: 1, slot: "next" }], bleeding: { amount: 1 }, fatigue: { rounds: 1, reference: "round_placed_and_revealed" } },
  { id: "rogue-08", classId: "rogue", number: 8, text: { main: ["+1 def → +1 def"], footer: ["(Fadiga 2)"] }, effects: [{ kind: "defense", amount: 1, slot: "current" }, { kind: "defense", amount: 1, slot: "next" }], fatigue: { rounds: 2, reference: "round_placed_and_revealed" } },
- { id: "rogue-09", classId: "rogue", number: 9, text: { main: ["+2 dano"], footer: ["Flutuando 1", "Divida o dano entre slots ao alcance."] }, effects: [{ kind: "damage", amount: 2, slot: "current" }], floating: { effect: "damage", range: 1, points: 2 } },
+ { id: "rogue-09", classId: "rogue", number: 9, text: { main: ["+2 dano"], footer: ["Flutuando 1", "Divida o dano entre slots ao alcance.", "(Fadiga 1)"] }, effects: [{ kind: "damage", amount: 2, slot: "current" }], floating: { effect: "damage", range: 1, points: 2 }, fatigue: { rounds: 1, reference: "round_placed_and_revealed" } },
  { id: "rogue-10", classId: "rogue", number: 10, text: { main: ["+1 dano"], footer: ["Sangramento · Flutuando 3", "Adiciona 1 marcador e dobra os do destino.", "(Fadiga 2)"] }, effects: [{ kind: "damage", amount: 1, slot: "current" }], bleeding: { amount: 1, doubleAfterAdding: true }, floating: { effect: "bleeding", range: 3, points: 1 }, fatigue: { rounds: 2, reference: "round_placed_and_revealed" } },
 ];
 

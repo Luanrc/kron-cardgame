@@ -38,14 +38,14 @@ assert.equal(result.battle[4].riposteTriggered[1],true);
 assert.equal(result.battle[4].outgoing[1].defense,4);
 assert.deepEqual(result.fatigue[0].cards.map(card=>card.card),["monk-1-7","monk-1-9","monk-1-10"]);
 assert.deepEqual((await read(1)).battle,result.battle);
-await act(1,{type:"reset"});
+await nextRound(1);
 assert.deepEqual(room.decks,{1:"monk",2:"warrior"});
 await act(1,{type:"select_deck",deck:"warrior"},400);
 await act(1,{type:"place",slot:0,card:"monk-1-7"},400);
 for(let cycle=0;cycle<10&&!room.result;cycle++) {
  await fill(["monk-1-1","monk-1-2","monk-1-3","monk-1-4","monk-1-5"],["A","B","D","E","C"]);
  await act(1,{type:"ready"}); await act(2,{type:"ready"});
- if(!room.result) await act(1,{type:"reset"});
+ if(!room.result) await nextRound(1);
 }
 assert.ok(room.result);
 await act(1,{type:"restart"});
@@ -53,3 +53,5 @@ assert.deepEqual(room.decks,{1:"monk",2:"warrior"});
 assert.deepEqual(room.life,{1:10,2:10});
 assert.ok(room.fatigue.every(side=>side.cards.length===0));
 console.log("Passed: independent deck selection, mixed combat, concealed cards, Deflect, Reflect, conditional riposte arrow, shared fatigue, deck locking and restart.");
+
+async function nextRound(player) { await act(player, { type: "reset" }); return act(player === 1 ? 2 : 1, { type: "reset" }); }

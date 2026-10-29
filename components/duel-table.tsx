@@ -5,6 +5,7 @@ import { ArrowLeft, Check, ChevronRight, Heart, Shield, Swords } from "lucide-re
 import { cardsFor, requiredCardsFor, isSummonActive, type GameAction, type RoomView, type Player, type Viewer } from "../lib/game";
 import { cardDescription, classNameFor, definitionFor, isMandatoryCard } from "../lib/cards";
 import { canPlaceOnTable, deckTableColors, tableSides, tableSlot } from "../lib/table-view";
+import { RoundTimer } from "./round-timer";
 import { TableScene } from "./table-scene";
 import { CardText } from "./card-text";
 import { CardZoom } from "./card-zoom";
@@ -32,6 +33,7 @@ type Props = { room: RoomView | null; player: Viewer; busy: boolean; status: str
  }
 
 export function DuelTable({ room, player, busy, status, error, onAction, onLeave }: Props) {
+ const [warningVersion, setWarningVersion] = useState(0);
  const [selected, setSelected] = useState<string | null>(null);
  const [dragged, setDragged] = useState<string | null>(null);
  const [dropTarget, setDropTarget] = useState<number | null>(null);
@@ -46,14 +48,14 @@ export function DuelTable({ room, player, busy, status, error, onAction, onLeave
  const own = room?.fields.find(field => field.player === player);
  const vision = room && player !== "spectator" ? room.visions[player === 1 ? 2 : 1] : null;
  const waitingForVision = !!room && vision?.round === room.round && vision.slot === null;
- const locked = busy || !room || !!own?.ready || !!room.result || !!room.revealed || waitingForVision;
+ const locked = busy || !room || !!own?.ready || !!room.result || !!room.revealed || waitingForVision || room?.preparationStartedAt === null;
  const fatigued = room?.fatigue.find(side => side.player === player)?.cards.map(entry => entry.card) ?? [];
  const hand = room && player !== "spectator" ? cardsFor(player, room.decks[player]).filter(card => !fatigued.includes(card)) : [];
  const required = room && player !== "spectator" && !room.noActionOptional[player] ? requiredCardsFor(player, room.decks[player]) : [];
  const missing = required.filter(card => !room?.ownSlots.includes(card));
  const filled = room && player !== "spectator" ? room.ownSlots.filter((card, slot) => card || room.creatures[player][slot]).length : 0;
  const needsForetell = !!room && player !== "spectator" && room.visions[player]?.round === room.round && room.visions[player]?.slot === null;
- const canReady = !locked && filled === 5 && !missing.length && !needsForetell;
+ const canAttemptReady = !locked && !needsForetell;
  const candidate = dragged ?? selected;
  const roundKey = [player, room?.match, room?.round, room?.decks[1], room?.decks[2]].join(":");
 
@@ -156,7 +158,7 @@ export function DuelTable({ room, player, busy, status, error, onAction, onLeave
          const canDrop = mine && !locked && !!candidate && canPlaceOnTable(room, side, slot, candidate);
          const pinned = vision?.round === room.round && vision.slot === slot;
          const disabled = !mine || locked || pinned || (candidate ? !canDrop : !room.ownSlots[slot]);
-         const content = creature ? <><CreatureText creature={creature} />{card && !definition?.summon && <span className="creature-overlay">{definition?.text.main.join(" · ") ?? "Fortalecimento virado"}</span>}</> : definition ? <CardText card={definition} /> : card ? <span className="mock-card-back" aria-hidden="true" /> : <span className="mock-empty"><span>+</span><small>{candidate && mine ? "Colocar aqui" : "Slot livre"}</small></span>;
+         const content = creature ? <><CreatureText creature={creature} />{room.revealed && definition?.fortify && <span className="creature-overlay">{definition.text.main.join(" · ")}</span>}</> : definition ? <CardText card={definition} /> : card ? <span className="mock-card-back" aria-hidden="true" /> : <span className="mock-empty"><span>+</span><small>{candidate && mine ? "Colocar aqui" : "Slot livre"}</small></span>;
          const preview = creature ? <><CreatureText creature={creature} />{definition?.fortify && <CardText card={definition} detailed />}</> : definition ? <FramedCard card={definition} /> : content;
          const label = `Player ${side}, slot ${slot + 1}` + (creature ? `, ${creature.kind === "wolf" ? "Lobo" : "Urso"}, vida ${creature.life}/${creature.maxLife}` : definition ? ", " + cardDescription(definition) : card ? ", carta virada" : ", vazio");
          const inner = <><span className="mock-slot-id">0{slot + 1}</span>{content}{room.bleeding[side][slot] > 0 && <span className="duel-bleeding">Sangramento {room.bleeding[side][slot]} · R{room.bleedingRound}</span>}</>;
@@ -172,8 +174,9 @@ export function DuelTable({ room, player, busy, status, error, onAction, onLeave
      <div className="mock-you"><DuelHero side={bottom} room={room} player={player} /><div className="mock-preparation"><span>{room.revealed ? "CARTAS REVELADAS" : player === "spectator" ? "PREPARAÇÃO" : own?.ready ? "AGUARDANDO OPONENTE" : "PREPARAÇÃO"}</span>{player !== "spectator" && <><strong>{filled}<small>/5 slots</small></strong><div>{Array.from({ length: 5 }, (_, i) => <i className={i < filled ? "filled" : ""} key={i} />)}</div></>}</div></div>
     </div>
     <aside className="mock-side mock-right">
-     {player !== "spectator" && <div className="mock-round-control">{room.revealed ? <button className="mock-ready" disabled={busy || activeSlot >= 0} onClick={() => onAction({ type: room.result ? "restart" : "reset" })}>{room.result ? "Nova partida" : "Nova rodada"}<ChevronRight size={17} /></button> : <button className="mock-ready" disabled={!canReady} onClick={() => onAction({ type: "ready" })}>{own?.ready ? "Pronto ✓" : "Pronto"}<Check size={17} /></button>}</div>}
-     <p className="duel-phase" role="status">{room.result ? room.result.type === "draw" ? "Empate!" : `Player ${room.result.winner} venceu!` : room.revealed ? "Confrontos resolvidos." : player === "spectator" ? "Aguardando os jogadores." : own?.ready ? "Aguardando o oponente…" : waitingForVision || needsForetell ? "Resolva a Premonição abaixo." : missing.length ? `Faltam ${missing.length} cartas Não age.` : "Prepare seus slots."}</p>
+     <RoundTimer room={room} />
+     {player !== "spectator" && <div className="mock-round-control">{room.revealed ? <button className="mock-ready" disabled={busy || activeSlot >= 0 || (!room.result && room.nextRoundReady[player])} onClick={() => onAction({ type: room.result ? "restart" : "reset" })}>{room.result ? "Nova partida" : room.nextRoundReady[player] ? "Confirmado ✓" : "Nova rodada"}<ChevronRight size={17} /></button> : <button className="mock-ready" disabled={!canAttemptReady} onClick={() => { if (missing.length) { setWarningVersion(value => value + 1); return; } void onAction({ type: "ready" }); }}>{own?.ready ? "Pronto ✓" : "Pronto"}<Check size={17} /></button>}</div>}
+     <p key={roundKey + warningVersion} className={"duel-phase" + (missing.length && warningVersion > 0 ? " mandatory-warning" : "")} role="status">{room.result ? room.result.type === "draw" ? "Empate!" : `Player ${room.result.winner} venceu!` : room.revealed ? room.nextRoundReady[1] || room.nextRoundReady[2] ? `Aguardando Player ${room.nextRoundReady[1] ? 2 : 1} confirmar Nova rodada.` : room.timedOut ? "Tempo esgotado. Slots vazios não agiram." : "Confrontos resolvidos." : player === "spectator" ? "Aguardando os jogadores." : own?.ready ? "Aguardando o oponente…" : waitingForVision || needsForetell ? "Resolva a Premonição abaixo." : room.preparationStartedAt === null ? "Aguardando o outro jogador escolher o baralho." : missing.length ? `Faltam ${missing.length} cartas Não age.` : "Prepare seus slots."}</p>
      <div className="mock-log"><h2>Confrontos</h2>{!room.revealed ? <p>O registro aparece após a revelação.</p> : <ol>{room.battle.map(item => <li key={item.slot}><b>0{item.slot}</b><span>P{bottom} <strong className={item.damageTaken[bottom] ? "hit" : ""}>−{item.damageTaken[bottom]}</strong><small>P{top} <strong className={item.damageTaken[top] ? "hit" : ""}>−{item.damageTaken[top]}</strong></small></span>{item.damageTaken[1] + item.damageTaken[2] === 0 ? <Shield size={13} /> : <Swords size={13} />}</li>)}</ol>}</div>
     </aside>
    </div>

@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "../db";
 import { rooms } from "../db/schema";
-import { applyAction, newGame, resetMatch, roomView, normalizeGameState, type GameAction, type GameState, type Player } from "../lib/game";
+import { applyAction, newGame, resetMatch, roomView, normalizeGameState, expirePreparation, type GameAction, type GameState, type Player } from "../lib/game";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store" };
 const reply = (data: unknown, status = 200) => Response.json(data, { status, headers });
@@ -11,12 +11,25 @@ async function readRoom() {
  const [room] = await db.select().from(rooms).where(eq(rooms.id, 1));
  return room;
 }
+// Persist deadline resolution once, even if only a spectator is polling.
+// Optimistic version checks serialize simultaneous reads and player actions.
+async function readCurrentRoom() {
+ for (let attempt = 0; attempt < 6; attempt++) {
+  const room = await readRoom();
+  const next = expirePreparation(normalizeGameState(JSON.parse(room.state) as GameState));
+  const state = JSON.stringify(next);
+  if (state === room.state) return room;
+  const updated = await getDb().update(rooms).set({ state, version: room.version + 1 }).where(and(eq(rooms.id, 1), eq(rooms.version, room.version))).returning({ version: rooms.version });
+  if (updated.length) return { ...room, state, version: updated[0].version };
+ }
+ throw new Error("Sala ocupada.");
+}
 export async function GET(request: Request) {
  const value = new URL(request.url).searchParams.get("player");
  const player = value === "spectator" ? "spectator" : Number(value);
  if (player !== 1 && player !== 2 && player !== "spectator") return reply({ error: "Jogador inválido." }, 400);
  try {
-  const room = await readRoom();
+  const room = await readCurrentRoom();
   return reply(roomView(JSON.parse(room.state) as GameState, player, room.version));
  } catch { return reply({ error: "Sala indisponível. Tente novamente." }, 503); }
 }
@@ -33,7 +46,7 @@ export async function POST(request: Request) {
   if (!input || (!lobbyReset && input.player !== 1 && input.player !== 2) || !Number.isInteger(input.round) || !Number.isInteger(input.match) || !input.action || (!lobbyReset && !["attack_target", "foretell", "holy_spend", "aim", "select_deck", "place", "ready", "reset", "restart"].includes(input.action.type))) return reply({ error: "Pedido inválido. Atualize a página se necessário." }, 400);
   const player: Player = input.player;
   for (let attempt = 0; attempt < 6; attempt++) {
-   const room = await readRoom();
+   const room = await readCurrentRoom();
    const state = normalizeGameState(JSON.parse(room.state) as GameState);
    if (input.match !== state.match) return reply({ error: "Uma nova partida começou. Aguarde a atualização da sala." }, 409);
    if (input.round !== state.round) return reply({ error: "A rodada mudou. Aguarde a atualização da sala." }, 409);

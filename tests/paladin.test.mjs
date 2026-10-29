@@ -1,3 +1,4 @@
+import { advanceRound } from "./round-helpers.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { paladinCards, validateDeck, isMandatoryCard } from "../lib/cards.ts";
@@ -107,7 +108,7 @@ test("Spending is validated, private until reveal, locked at Ready, and balances
  state=applyAction(state,2,{type:"ready"});
  assert.equal(state.holyPower[1],3);
  assert.equal(roomView(state,"spectator",0).holySpending[1]["paladin-1-7"],2);
- state=applyAction(state,1,{type:"reset"});
+ state=advanceRound(state);
  assert.equal(state.holyPower[1],3);
  assert.deepEqual(state.holySpending,emptyHolySpending());
  state.life={1:0,2:1};state.result={type:"win",winner:2};

@@ -45,6 +45,7 @@ function settleDamage(damage: Life, defense: Life, deflect: Record<Player, boole
  const bleedingTaken: Life = { 1: 0, 2: 0 };
  const currentDamageDealt: Life = { 1: 0, 2: 0 };
  const defenseUsed: Life = { 1: 0, 2: 0 };
+ const defendedOffense: Life = { 1: 0, 2: 0 };
  // Pending bleed consumes defense first; every point of defense is used once.
  let pending: DamagePacket[] = players.map(player => ({ from: opponent(player), to: player, amount: bleeding[player], kind: "bleeding" }));
  for (const player of players) pending.push({ from: opponent(player), to: player, amount: creatureBleeding[player], kind: "bleeding", target: "creature" });
@@ -77,6 +78,7 @@ function settleDamage(damage: Life, defense: Life, deflect: Record<Player, boole
     remainingDefense[player] -= blocked;
     remainingGuaranteed[player] = packet.guaranteed ? remainingGuaranteed[player] - blocked : Math.min(remainingGuaranteed[player], remainingDefense[player]);
     defenseUsed[player] += blocked;
+    if (packet.kind !== "bleeding" && packet.from !== player) defendedOffense[player] += blocked;
     const amount = packet.amount - blocked;
     if (!amount) continue;
     if (deflect[player]) deflected[player] += amount;
@@ -96,7 +98,7 @@ function settleDamage(damage: Life, defense: Life, deflect: Record<Player, boole
   }
   pending = next;
  }
- return { damageTaken, deflected, reflected, bleedingTaken, currentDamageDealt, defenseUsed, creatureDamageTaken, creatureDamageDealt, creatureBleedingTaken };
+ return { damageTaken, deflected, reflected, bleedingTaken, currentDamageDealt, defenseUsed, defendedOffense, creatureDamageTaken, creatureDamageDealt, creatureBleedingTaken };
 }
 
 export function resolveSlot(cards: Record<Player, CardDefinition | undefined>, incoming = emptyBonuses(), reflectionFromNextSlot: Record<Player, boolean> = { 1: false, 2: false }, context: { bleeding?: Life; floatingDamage?: Life; floatingDefense?: Life; creatures?: Record<Player, Creature | null>; attackTargets?: Record<Player, AttackTarget>; creatureBleeding?: Life } = {}): SlotCombat {
@@ -165,7 +167,7 @@ export function resolveSlot(cards: Record<Player, CardDefinition | undefined>, i
   const preview = settle();
   let changed = false;
   for (const player of players) {
-   if (!bothReactive && riposte[player] && !riposteTriggered[player] && preview.damageTaken[player] > 0) {
+   if (!bothReactive && riposte[player] && !riposteTriggered[player] && preview.damageTaken[player] + preview.defendedOffense[player] > 0) {
     riposteTriggered[player] = true; damage[player] += current[player].damage; changed = true;
    }
    if (!bothReactive && creatureRiposte[player] && !creatureRiposteTriggered[player] && preview.creatureDamageTaken[player] > 0) {

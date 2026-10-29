@@ -11,15 +11,15 @@ export type Slots = (string | null)[];
 export type FatigueEntry = { usedRound: number; availableRound: number };
 export type FatigueState = Record<Player, Record<string, FatigueEntry>>;
 export type VisionState = Record<Player, { round: number; slot: number | null } | null>;
-export type GameState = { creatures: CreatureState; attackTargets: AttackTargets; resources: ResourceBalances; visions: VisionState; noActionOptionalRound: Record<Player, number>; lobbyReset: number; holyPower: HolyPower; holySpending: HolySpending; bleeding: SlotCounters; floating: FloatingState; decks: Record<Player, DeckId>; match: number; round: number; slots: Record<Player, Slots>; ready: Record<Player, boolean>; fatigue: FatigueState; life: Life; result: MatchResult; battle: SlotResolution[] };
+export type GameState = { entered: Record<Player, boolean>; nextRoundReady: Record<Player, boolean>; preparationStartedAt: number | null; timedOut: boolean; creatures: CreatureState; attackTargets: AttackTargets; resources: ResourceBalances; visions: VisionState; noActionOptionalRound: Record<Player, number>; lobbyReset: number; holyPower: HolyPower; holySpending: HolySpending; bleeding: SlotCounters; floating: FloatingState; decks: Record<Player, DeckId>; match: number; round: number; slots: Record<Player, Slots>; ready: Record<Player, boolean>; fatigue: FatigueState; life: Life; result: MatchResult; battle: SlotResolution[] };
 export type GameAction = { type: "attack_target"; slot: number; target: AttackTarget } | { type: "foretell"; slot: number } | { type: "holy_spend"; card: string; amount: number } | { type: "aim"; card: string; targets: number[] } | { type: "select_deck"; deck: DeckId } | { type: "place"; slot: number; card: string | null } | { type: "ready" } | { type: "reset" } | { type: "restart" };
 export type FieldView = { player: Player; slots: (string | null)[]; ready: boolean };
 export type FatigueView = { player: Player; cards: { card: string; remainingRounds: number; availableRound: number }[] };
-export type RoomView = { creatures: CreatureState; attackTargets: Record<Player, AttackTarget[] | null>; resources: ResourceBalances; visions: VisionState; noActionOptional: Record<Player, boolean>; lobbyReset: number; holyPower: HolyPower; holySpending: HolySpending; bleeding: SlotCounters; bleedingRound: number; floating: FloatingState; decks: Record<Player, DeckId>; version: number; match: number; round: number; initialLife: Life; life: Life; result: MatchResult; battle: SlotResolution[]; revealed: boolean; ownSlots: Slots; fields: FieldView[]; fatigue: FatigueView[] };
+export type RoomView = { entered: Record<Player, boolean>; nextRoundReady: Record<Player, boolean>; preparationStartedAt: number | null; preparationDuration: number; serverNow: number; timedOut: boolean; creatures: CreatureState; attackTargets: Record<Player, AttackTarget[] | null>; resources: ResourceBalances; visions: VisionState; noActionOptional: Record<Player, boolean>; lobbyReset: number; holyPower: HolyPower; holySpending: HolySpending; bleeding: SlotCounters; bleedingRound: number; floating: FloatingState; decks: Record<Player, DeckId>; version: number; match: number; round: number; initialLife: Life; life: Life; result: MatchResult; battle: SlotResolution[]; revealed: boolean; ownSlots: Slots; fields: FieldView[]; fatigue: FatigueView[] };
 const players: Player[] = [1, 2];
 export const cardsFor = (player: Player, deck: DeckId = "warrior") => deckFor(player, deck).map(card => card.instanceId);
 export const requiredCardsFor = (player: Player, deck: DeckId = "warrior") => cardsFor(player, deck).filter(card => isMandatoryCard(definitionFor(player, card)!));
-export const newGame = (round = 1, match = 1): GameState => ({ creatures: emptyCreatures(), attackTargets: emptyAttackTargets(), resources: initialResources({ 1: "warrior", 2: "warrior" }), visions: { 1: null, 2: null }, noActionOptionalRound: { 1: 0, 2: 0 }, lobbyReset: 0, holyPower: emptyHolyPower(), holySpending: emptyHolySpending(), bleeding: emptySlotCounters(), floating: emptyFloating(), decks: { 1: "warrior", 2: "warrior" }, match, round, slots: { 1: Array(5).fill(null), 2: Array(5).fill(null) }, ready: { 1: false, 2: false }, fatigue: { 1: {}, 2: {} }, life: { 1: INITIAL_LIFE, 2: INITIAL_LIFE }, result: null, battle: [] });
+export const newGame = (round = 1, match = 1): GameState => ({ entered: { 1: false, 2: false }, nextRoundReady: { 1: false, 2: false }, preparationStartedAt: null, timedOut: false, creatures: emptyCreatures(), attackTargets: emptyAttackTargets(), resources: initialResources({ 1: "warrior", 2: "warrior" }), visions: { 1: null, 2: null }, noActionOptionalRound: { 1: 0, 2: 0 }, lobbyReset: 0, holyPower: emptyHolyPower(), holySpending: emptyHolySpending(), bleeding: emptySlotCounters(), floating: emptyFloating(), decks: { 1: "warrior", 2: "warrior" }, match, round, slots: { 1: Array(5).fill(null), 2: Array(5).fill(null) }, ready: { 1: false, 2: false }, fatigue: { 1: {}, 2: {} }, life: { 1: INITIAL_LIFE, 2: INITIAL_LIFE }, result: null, battle: [] });
 export const resetMatch = (state: GameState): GameState => ({ ...newGame(1, state.match + 1), lobbyReset: state.lobbyReset + 1 });
 export const isRevealed = (state: GameState) => state.ready[1] && state.ready[2];
 
@@ -56,43 +56,52 @@ function removeRecoveredCards(state: GameState) {
 }
 
 // Upgrade saved rounds without erasing the field or requiring a database migration.
-export function normalizeGameState(input: Pick<GameState, "round" | "slots" | "ready"> & Partial<Omit<GameState, "round" | "slots" | "ready">>): GameState {
+export function normalizeGameState(input: Pick<GameState, "round" | "slots" | "ready"> & Partial<Omit<GameState, "round" | "slots" | "ready">>, now = Date.now()): GameState {
  const legacy = !input.fatigue;
  const life = structuredClone(input.life ?? { 1: initialLifeFor(input.decks?.[1] ?? "warrior"), 2: initialLifeFor(input.decks?.[2] ?? "warrior") });
- const state: GameState = { ...structuredClone(input), creatures: structuredClone(input.creatures ?? emptyCreatures()), attackTargets: structuredClone(input.attackTargets ?? emptyAttackTargets()), resources: structuredClone(input.resources ?? initialResources(input.decks ?? { 1: "warrior", 2: "warrior" })), visions: structuredClone(input.visions ?? { 1: null, 2: null }), noActionOptionalRound: structuredClone(input.noActionOptionalRound ?? { 1: 0, 2: 0 }), lobbyReset: input.lobbyReset ?? 0, holyPower: structuredClone(input.holyPower ?? emptyHolyPower()), holySpending: structuredClone(input.holySpending ?? emptyHolySpending()), bleeding: structuredClone(input.bleeding ?? emptySlotCounters()), floating: structuredClone(input.floating ?? emptyFloating()), decks: structuredClone(input.decks ?? { 1: "warrior", 2: "warrior" }), match: input.match ?? 1, fatigue: structuredClone(input.fatigue ?? { 1: {}, 2: {} }), life, result: input.result ?? resultFor(life), battle: structuredClone(input.battle ?? []) };
+ // The previous saved format used 11 life for Barbarian. Preserve damage
+ // already taken while upgrading that format to the new 9-life class.
+ if (!input.entered && input.life) for (const side of players) if (input.decks?.[side] === "barbarian") life[side] = Math.max(0, life[side] - 2);
+ const legacyActive = input.round > 1 || input.ready[1] || input.ready[2] || Object.values(input.slots).some(slots => slots.some(Boolean));
+ const state: GameState = { ...structuredClone(input), entered: structuredClone(input.entered ?? { 1: legacyActive, 2: legacyActive }), nextRoundReady: structuredClone(input.nextRoundReady ?? { 1: false, 2: false }), preparationStartedAt: input.preparationStartedAt ?? null, timedOut: input.timedOut ?? false, creatures: structuredClone(input.creatures ?? emptyCreatures()), attackTargets: structuredClone(input.attackTargets ?? emptyAttackTargets()), resources: structuredClone(input.resources ?? initialResources(input.decks ?? { 1: "warrior", 2: "warrior" })), visions: structuredClone(input.visions ?? { 1: null, 2: null }), noActionOptionalRound: structuredClone(input.noActionOptionalRound ?? { 1: 0, 2: 0 }), lobbyReset: input.lobbyReset ?? 0, holyPower: structuredClone(input.holyPower ?? emptyHolyPower()), holySpending: structuredClone(input.holySpending ?? emptyHolySpending()), bleeding: structuredClone(input.bleeding ?? emptySlotCounters()), floating: structuredClone(input.floating ?? emptyFloating()), decks: structuredClone(input.decks ?? { 1: "warrior", 2: "warrior" }), match: input.match ?? 1, fatigue: structuredClone(input.fatigue ?? { 1: {}, 2: {} }), life, result: input.result ?? resultFor(life), battle: structuredClone(input.battle ?? []) };
  if (legacy) {
   if (isRevealed(state)) registerFatigue(state);
   else for (const player of players) {
    if (state.ready[player] && missingRequiredCards(state, player).length) state.ready[player] = false;
   }
  }
+ for (const side of players) for (const creature of state.creatures[side]) if (creature?.kind === "bear") creature.riposte = false;
  removeRecoveredCards(state);
- return state;
+ return startPreparation(state, now);
 }
 
-export function applyAction(input: GameState, player: Player, action: GameAction): GameState {
+export function applyAction(input: GameState, player: Player, action: GameAction, now = Date.now()): GameState {
  if (player !== 1 && player !== 2) throw new Error("Espectadores só podem assistir.");
- const state = normalizeGameState(input);
+ const state = expirePreparation(normalizeGameState(input, now), now);
  if (action.type === "select_deck") {
   if (!isDeckId(action.deck)) throw new Error("Baralho inválido.");
   if (!isDeckPlayable(action.deck)) throw new Error("Invocador: as interações das criaturas ainda estão em preparação.");
-  if (state.decks[player] === action.deck) return state;
+  state.entered[player] = true;
+  if (state.decks[player] === action.deck) return startPreparation(state, now);
   if (state.round !== 1 || state.result || state.battle.length || state.ready[player] || state.slots[player].some(Boolean) || players.some(side => state.life[side] !== initialLifeFor(state.decks[side]))) throw new Error("O baralho só pode ser trocado no início da partida, antes de colocar suas cartas. Para continuar, selecione " + classNameFor(state.decks[player]) + ".");
   state.decks[player] = action.deck;
   state.life[player] = initialLifeFor(action.deck);
   const resources = initialResources(state.decks);
   state.resources.ammo[player] = resources.ammo[player];
   state.resources.arcane[player] = resources.arcane[player];
-  return state;
+  return startPreparation(state, now);
  }
  if (action.type === "restart") {
   if (!state.result) throw new Error("A partida ainda não terminou.");
-  return { ...newGame(1, state.match + 1), lobbyReset: state.lobbyReset, decks: structuredClone(state.decks), life: { 1: initialLifeFor(state.decks[1]), 2: initialLifeFor(state.decks[2]) }, resources: initialResources(state.decks) };
+  return startPreparation({ ...newGame(1, state.match + 1), entered: structuredClone(state.entered), lobbyReset: state.lobbyReset, decks: structuredClone(state.decks), life: { 1: initialLifeFor(state.decks[1]), 2: initialLifeFor(state.decks[2]) }, resources: initialResources(state.decks) }, now);
  }
  if (state.result) throw new Error("A partida terminou. Inicie uma nova partida.");
  if (action.type === "reset") {
   if (!isRevealed(state)) throw new Error("A rodada ainda não terminou.");
+  state.nextRoundReady[player] = true;
+  if (!players.every(side => state.nextRoundReady[side])) return state;
   const next = newGame(state.round + 1, state.match);
+  next.entered = structuredClone(state.entered);
   next.decks = structuredClone(state.decks);
   next.lobbyReset = state.lobbyReset;
   next.life = structuredClone(state.life);
@@ -104,10 +113,11 @@ export function applyAction(input: GameState, player: Player, action: GameAction
   next.visions = structuredClone(state.visions);
   next.noActionOptionalRound = structuredClone(state.noActionOptionalRound);
   removeRecoveredCards(next);
-  return next;
+  return startPreparation(next, now);
  }
  if (state.ready[player]) throw new Error("Você já está pronto. Aguarde o outro jogador.");
  const next = structuredClone(state);
+ next.entered[player] = true;
  const opponent: Player = player === 1 ? 2 : 1;
  const visionOnPlayer = state.visions[opponent]?.round === state.round ? state.visions[opponent] : null;
  if (action.type === "attack_target") {
@@ -122,7 +132,7 @@ export function applyAction(input: GameState, player: Player, action: GameAction
   if (state.creatures[player][action.slot]) throw new Error("Escolha um slot livre de invocações para a carta Não age.");
   next.visions[opponent]!.slot = action.slot;
   next.slots[player][action.slot] = requiredCardsFor(player, state.decks[player])[0];
-  return next;
+  return startPreparation(next, now);
  }
  if (action.type === "ready") {
   if (state.visions[player]?.round === state.round && state.visions[player]?.slot === null) throw new Error("Aguarde o adversário confirmar o slot da Premonição.");
@@ -137,19 +147,7 @@ export function applyAction(input: GameState, player: Player, action: GameAction
   }
   next.ready[player] = true;
   if (isRevealed(next)) {
-   const battle = resolveBattle(next.slots, next.life, { bleeding: next.bleeding, floating: next.floating, holyPower: next.holyPower, holySpending: next.holySpending, resources: next.resources, creatures: next.creatures, attackTargets: next.attackTargets });
-   next.life = battle.life;
-   next.result = battle.result;
-   next.battle = battle.log;
-   next.bleeding = battle.bleeding;
-   next.holyPower = battle.holyPower;
-   next.resources = battle.resources;
-   next.creatures = battle.creatures;
-   for (const side of players) {
-    if (battle.rageNext[side]) next.noActionOptionalRound[side] = state.round + 1;
-    next.visions[side] = battle.premonitionNext[side] && !battle.rageNext[side === 1 ? 2 : 1] ? { round: state.round + 1, slot: null } : null;
-   }
-   registerFatigue(next);
+   finishBattle(next);
   }
  } else if (action.type === "place") {
   if (visionOnPlayer?.slot === null) throw new Error("Escolha primeiro o slot da carta Não age revelada por Premonição.");
@@ -188,13 +186,14 @@ export function applyAction(input: GameState, player: Player, action: GameAction
   validateHolySpending(action.amount, potentialHolyPower(player, state.slots[player], action.card, state.holyPower[player]));
   next.holySpending[player][action.card] = action.amount;
  } else { throw new Error("Ação inválida."); }
- return next;
+ return startPreparation(next, now);
 }
 
-export function roomView(input: GameState, player: Viewer, version: number): RoomView {
- const state = normalizeGameState(input);
+export function roomView(input: GameState, player: Viewer, version: number, now = Date.now()): RoomView {
+ const state = normalizeGameState(input, now);
  const revealed = isRevealed(state);
  return {
+  entered: state.entered, nextRoundReady: state.nextRoundReady, preparationStartedAt: state.preparationStartedAt, preparationDuration: PREPARATION_MS, serverNow: now, timedOut: state.timedOut,
   creatures: state.creatures,
   attackTargets: { 1: revealed || player === 1 ? state.attackTargets[1] : null, 2: revealed || player === 2 ? state.attackTargets[2] : null },
   resources: state.resources,
@@ -207,7 +206,7 @@ export function roomView(input: GameState, player: Viewer, version: number): Roo
   decks: state.decks, version, match: state.match, round: state.round, initialLife: { 1: initialLifeFor(state.decks[1]), 2: initialLifeFor(state.decks[2]) }, life: state.life, result: state.result, battle: revealed ? state.battle : [], revealed, ownSlots: player === "spectator" ? [] : state.slots[player],
   fields: players.map(side => ({
    player: side, ready: state.ready[side],
-   slots: state.slots[side].map((card, slot) => card === null ? null : revealed || (player !== "spectator" && player !== side && state.visions[player]?.round === state.round && state.visions[player]?.slot === slot) ? card : "hidden"),
+   slots: state.slots[side].map((card, slot) => !revealed && state.creatures[side][slot] ? null : card === null ? null : revealed || (player !== "spectator" && player !== side && state.visions[player]?.round === state.round && state.visions[player]?.slot === slot) ? card : "hidden"),
   })),
   fatigue: players.map(side => ({
    player: side,
@@ -217,4 +216,51 @@ export function roomView(input: GameState, player: Viewer, version: number): Roo
    }),
   })),
  };
+}
+
+export const PREPARATION_MS = 70_000;
+
+function startPreparation(state: GameState, now: number): GameState {
+ const waitingForVision = players.some(side => state.visions[side]?.round === state.round && state.visions[side]?.slot === null);
+ if (!state.result && !isRevealed(state) && state.preparationStartedAt === null && state.entered[1] && state.entered[2] && !waitingForVision) state.preparationStartedAt = now;
+ return state;
+}
+
+function finishBattle(next: GameState) {
+   const battle = resolveBattle(next.slots, next.life, { bleeding: next.bleeding, floating: next.floating, holyPower: next.holyPower, holySpending: next.holySpending, resources: next.resources, creatures: next.creatures, attackTargets: next.attackTargets });
+   next.life = battle.life;
+   next.result = battle.result;
+   next.battle = battle.log;
+   next.bleeding = battle.bleeding;
+   next.holyPower = battle.holyPower;
+   next.resources = battle.resources;
+   next.creatures = battle.creatures;
+   for (const side of players) {
+    if (battle.rageNext[side]) next.noActionOptionalRound[side] = next.round + 1;
+    next.visions[side] = battle.premonitionNext[side] && !battle.rageNext[side === 1 ? 2 : 1] ? { round: next.round + 1, slot: null } : null;
+   }
+   registerFatigue(next);
+}
+
+// Preserve mandatory idle actions at timeout, discarding excess actions from
+// the last unoccupied-by-creature slot backwards. Empty slots act as idle.
+export function expirePreparation(input: GameState, now = Date.now()): GameState {
+ if (input.preparationStartedAt === null || now < input.preparationStartedAt + PREPARATION_MS || isRevealed(input) || input.result) return input;
+ const next = normalizeGameState(input, now);
+ for (const side of players) {
+  if (next.ready[side]) continue;
+  let missingIdle = missingRequiredCards(next, side).length;
+  missingIdle -= next.slots[side].filter((card, slot) => card === null && !next.creatures[side][slot]).length;
+  for (let slot = 4; slot >= 0 && missingIdle > 0; slot--) {
+   const card = next.slots[side][slot];
+   if (!card || next.creatures[side][slot] || isMandatoryCard(definitionFor(side, card)!)) continue;
+   next.slots[side][slot] = null;
+   delete next.floating[side][card]; delete next.holySpending[side][card];
+   missingIdle--;
+  }
+  for (const card of resourceCards(next, side)) if (card) next.holySpending[side][card] = Math.min(next.holySpending[side][card] ?? 0, potentialHolyPower(side, next.slots[side], card, next.holyPower[side]));
+ }
+ next.timedOut = true; next.ready = { 1: true, 2: true };
+ finishBattle(next);
+ return next;
 }

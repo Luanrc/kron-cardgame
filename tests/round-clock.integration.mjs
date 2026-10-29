@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { setTimeout } from 'node:timers/promises';
+import {base} from './local-room.mjs';
+let room=await fetch(base+'?player=spectator').then(r=>r.json());
+async function act(player,action,status=200,round=room.round){const r=await fetch(base,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({player,match:room.match,round,action})});const data=await r.json();assert.equal(r.status,status,JSON.stringify(data));if(r.ok)room=data;return data;}
+await act(undefined,{type:'full_reset'});
+await act(1,{type:'select_deck',deck:'monk'});assert.equal(room.preparationStartedAt,null);
+await act(2,{type:'select_deck',deck:'barbarian'});assert.equal(room.life[2],9);
+const startedAt=room.preparationStartedAt;assert.ok(startedAt);assert.equal(room.preparationDuration,70000);
+await act(1,{type:'place',slot:0,card:'monk-1-5'});await act(2,{type:'place',slot:0,card:'barbarian-2-3'});
+const views=await Promise.all([1,2,'spectator'].map(p=>fetch(base+'?player='+p).then(r=>r.json())));
+assert.ok(views.every(v=>v.preparationStartedAt===startedAt&&!v.revealed));
+console.log('Shared 70s timer running locally: Monk vs Barbarian. Waiting for the real deadline.');
+await setTimeout(Math.max(0,startedAt+70000-Date.now()+200));
+const expired=await Promise.all(Array.from({length:6},()=>fetch(base+'?player=spectator').then(r=>r.json())));
+assert.ok(expired.every(v=>v.revealed&&v.timedOut&&v.life[1]===10&&v.life[2]===7));
+assert.equal(new Set(expired.map(v=>v.version)).size,1,'concurrent polling must resolve the battle once');
+assert.ok(expired[0].battle[0].riposteTriggered[1]);assert.equal(expired[0].battle[0].damageTaken[1],0);
+room=expired[0];assert.deepEqual(room.fields[0].slots,['monk-1-5',null,null,null,null]);
+await act(1,{type:'reset'});assert.equal(room.round,1);assert.equal(room.revealed,true);assert.equal(room.nextRoundReady[1],true);
+await act(1,{type:'reset'});assert.equal(room.round,1);
+await act(2,{type:'reset'});assert.equal(room.round,2);assert.ok(room.preparationStartedAt>=startedAt+70000);
+await act(1,{type:'place',slot:0,card:'monk-1-1'},409,1);
+console.log('Passed: actual 70s shared deadline, automatic empty-slot reveal, defense-blocked Riposte, six concurrent expirations, single resolution, two distinct next-round votes and stale-round rejection.');

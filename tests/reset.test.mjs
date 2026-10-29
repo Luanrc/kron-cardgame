@@ -1,3 +1,4 @@
+import { advanceRound } from "./round-helpers.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { newGame, resetMatch, normalizeGameState, applyAction } from "../lib/game.ts";
@@ -19,7 +20,7 @@ test("Lobby reset clears both players' decks, resources, effects and plans even 
 
 test("Only a lobby reset changes its signal; ordinary rounds and match restarts keep it",()=>{
  let state=newGame();state.lobbyReset=4;state.ready={1:true,2:true};
- state=applyAction(state,1,{type:"reset"});assert.equal(state.lobbyReset,4);
+ state=advanceRound(state);assert.equal(state.lobbyReset,4);
  state.result={type:"win",winner:1};state.life={1:5,2:0};
  state=applyAction(state,1,{type:"restart"});assert.equal(state.lobbyReset,4);
  assert.equal(normalizeGameState({...newGame(),lobbyReset:undefined}).lobbyReset,0);

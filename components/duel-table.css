@@ -30,3 +30,18 @@
 .duel-table .mock-hand-card .card-main { flex: initial; }
 .duel-table .mock-hand-tag { flex-shrink: 0; }
 .duel-table .mock-slot .card-copy { min-height: 0; overflow: hidden; }
+.duel-timer { position: relative; width: 100%; text-align: center; color: #c5ac7c; padding-bottom: 8px; }
+.duel-timer svg { display: block; width: 94px; height: 94px; margin: 0 auto; transform: rotate(-90deg); fill: none; stroke-width: 3px; }
+.timer-track { stroke: #34443e; }
+.timer-progress { stroke: currentColor; stroke-linecap: round; transition: stroke-dashoffset .2s linear, stroke .3s; }
+.duel-timer > span { position: absolute; top: 23px; left: 0; width: 100%; display: flex; align-items: center; flex-direction: column; }
+.duel-timer strong { font: 28px/1.1 Georgia, serif; }
+.duel-timer small { font-size: 7px; letter-spacing: 1px; }
+.duel-timer p { font-size: 10px; color: #91a297; margin: 8px 0; }
+.duel-timer.timer-urgent { color: #ef8984; }
+.duel-table .mock-round-control { padding-top: 16px; }
+.mandatory-warning { animation: mandatory-shake .45s ease-in-out, mandatory-red 1.8s ease-out; }
+@keyframes mandatory-shake { 0%, 100% { transform: translateX(0); } 15%, 45%, 75% { transform: translateX(-5px); } 30%, 60%, 90% { transform: translateX(5px); } }
+@keyframes mandatory-red { 0%, 30% { color: #ff7773; } 100% { color: #a8b8ad; } }
+@media (prefers-reduced-motion: reduce) { .mandatory-warning { animation: mandatory-red 1.8s ease-out !important; } .timer-progress { transition: none; } }
+.duel-table.motion-reduced .mandatory-warning { animation: mandatory-red 1.8s ease-out !important; }

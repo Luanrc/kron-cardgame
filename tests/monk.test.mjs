@@ -1,3 +1,4 @@
+import { advanceRound } from "./round-helpers.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { monkCards, warriorCards, deckFor, definitionFor, isMandatoryCard, validateDeck } from "../lib/cards.ts";
@@ -24,12 +25,12 @@ test("Monk catalog preserves the reference, duplicate ripostes and independent c
  assert.ok([...monkCards,...warriorCards].every(card=>![...card.text.main,...card.text.footer].join(" ").includes("MA")));
 });
 
-test("Monk defense is always active, while both riposte copies require real damage",()=>{
+test("Monk defense is always active, while both riposte copies react to attacks blocked by defense",()=>{
  for(const number of [5,6]) {
   const card=monkCards[number-1];
   const blocked=resolveSlot({1:card,2:warriorCards[3]});
-  assert.deepEqual(blocked.damageTaken,{1:0,2:0});
-  assert.equal(blocked.riposteTriggered[1],false);
+  assert.deepEqual(blocked.damageTaken,{1:0,2:2});
+  assert.equal(blocked.riposteTriggered[1],true);
   const triggered=resolveSlot({1:card,2:warriorCards[9]});
   assert.deepEqual(triggered.damageTaken,{1:2,2:2});
   assert.equal(triggered.riposteTriggered[1],true);
@@ -137,7 +138,7 @@ test("Monk mandatory cards, public fatigue, recovery and deck selection survive 
  place(2,["A","B","C","D","E"]);
  state=applyAction(state,1,{type:"ready"}); state=applyAction(state,2,{type:"ready"});
  assert.deepEqual(roomView(state,"spectator",1).fatigue[0].cards.map(card=>[card.card,card.availableRound]),[["monk-1-7",4],["monk-1-8",3],["monk-1-10",4]]);
- state=applyAction(state,1,{type:"reset"});
+ state=advanceRound(state);
  assert.deepEqual(state.decks,{1:"monk",2:"warrior"});
  assert.equal(availableCardsFor(state,1).length,7);
  assert.throws(()=>applyAction(state,1,{type:"place",slot:0,card:"monk-1-7"}),/Fadiga/);

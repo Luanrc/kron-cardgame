@@ -1,3 +1,4 @@
+import { advanceRound } from "./round-helpers.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { catalog } from "../lib/cards.ts";
@@ -16,11 +17,11 @@ test("A newly summoned Wolf acts immediately and can die simultaneously without 
  assert.equal(result.log[0].creatureDamageTaken[1],3);assert.equal(result.log[0].creatureDamageDealt[1],1);
 });
 
-test("The Bear's defense and Riposte protect/react only to attacks on the Bear",()=>{
+test("The Bear attacks unconditionally and its defense protects only the Bear",()=>{
  const cards=fields(["summoner-1-5"],["J"]);
- const owner=resolveBattle(cards,{1:11,2:10});assert.deepEqual(owner.life,{1:8,2:10});assert.equal(owner.creatures[1][0].life,3);
- const bear=resolveBattle(cards,{1:11,2:10},{attackTargets:targets()});assert.deepEqual(bear.life,{1:11,2:9});assert.equal(bear.creatures[1][0].life,1);assert.equal(bear.log[0].creatureRiposteTriggered[1],true);
- const blocked=resolveBattle(fields(["summoner-1-5"],["D"]),{1:11,2:10},{attackTargets:targets()});assert.equal(blocked.creatures[1][0].life,3);assert.equal(blocked.life[2],10);
+ const owner=resolveBattle(cards,{1:11,2:10});assert.deepEqual(owner.life,{1:8,2:9});assert.equal(owner.creatures[1][0].life,3);
+ const bear=resolveBattle(cards,{1:11,2:10},{attackTargets:targets()});assert.deepEqual(bear.life,{1:11,2:9});assert.equal(bear.creatures[1][0].life,1);assert.equal(bear.log[0].creatureRiposteTriggered[1],false);
+ const blocked=resolveBattle(fields(["summoner-1-5"],["D"]),{1:11,2:10},{attackTargets:targets()});assert.equal(blocked.creatures[1][0].life,3);assert.equal(blocked.life[2],9);
  const guaranteed=resolveBattle(fields(["summoner-1-5"],["mage-2-7"]),{1:11,2:8},{attackTargets:targets()});assert.equal(guaranteed.creatures[1][0].life,1);assert.equal(guaranteed.life[2],7);
 });
 
@@ -79,12 +80,12 @@ test("Attack targets are validated, private before reveal and locked at Ready; c
  assert.throws(()=>applyAction(state,2,{type:"attack_target",slot:5,target:"creature"}),/inválido/);assert.throws(()=>applyAction(state,2,{type:"attack_target",slot:0,target:"other"}),/inválido/);
  for(const [slot,card] of ["A","B","C","D","E"].entries())state=applyAction(state,2,{type:"place",slot,card});state=applyAction(state,2,{type:"ready"});
  assert.throws(()=>applyAction(state,2,{type:"attack_target",slot:0,target:"player"}),/já está pronto/);
- state=applyAction(state,1,{type:"place",slot:0,card:"summoner-1-8"});assert.equal(roomView(state,"spectator",1).creatures[1][0].damage,1);assert.equal(roomView(state,"spectator",1).fields[0].slots[0],"hidden");
+ state=applyAction(state,1,{type:"place",slot:0,card:"summoner-1-8"});assert.equal(roomView(state,"spectator",1).creatures[1][0].damage,1);assert.equal(roomView(state,"spectator",1).fields[0].slots[0],null);
 });
 
 test("New round preserves creatures and health but clears target plans; restarts and full reset clear all creatures",()=>{
  let state=chosen();state.creatures=occupied();state.attackTargets=targets();state.ready={1:true,2:true};state.life[1]=7;
- state=applyAction(state,1,{type:"reset"});assert.equal(state.creatures[1][0].life,2);assert.equal(state.life[1],7);assert.deepEqual(state.attackTargets,emptyAttackTargets());
+ state=advanceRound(state);assert.equal(state.creatures[1][0].life,2);assert.equal(state.life[1],7);assert.deepEqual(state.attackTargets,emptyAttackTargets());
  state.result={type:"win",winner:2};state.life[1]=0;const restarted=applyAction(state,2,{type:"restart"});assert.deepEqual(restarted.creatures,emptyCreatures());assert.equal(restarted.life[1],11);
  assert.deepEqual(resetMatch(state).creatures,emptyCreatures());
 });

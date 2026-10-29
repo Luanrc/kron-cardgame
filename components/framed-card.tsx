@@ -7,7 +7,7 @@ export function FramedCard({ card }: { card: CardDefinition }) {
  const rules: string[] = [...card.text.main, ...card.text.footer].filter(line => !brief.main.includes(line) && !brief.footer.includes(line));
  if (isMandatoryCard(card)) rules.push("Deve ser jogada a cada rodada. Não realiza ações e não recebe Fadiga.");
  if (card.effects.some(effect => effect.kind === "stun")) rules.push("Impede a carta adversária deste slot de agir. Bônus vindos de outro slot são preservados.");
- if (card.damageCondition) rules.push("Ripostar: só causa dano se você sofrer dano neste slot. Duas Ripostas não se ativam.");
+ if (card.damageCondition) rules.push("Ripostar: reage ao dano adversário neste slot, mesmo se sua defesa o bloquear. Duas Ripostas não se ativam.");
  if (card.effects.some(effect => (effect.kind === "damage" || effect.kind === "defense") && effect.slot === "next")) rules.push(card.nextSlotCondition ? "A defesa seguinte só é gerada se Ripostar ativar." : "Após a seta, o efeito vai para o próximo slot. Após o slot 5, é descartado.");
  if (card.effects.some(effect => effect.kind === "deflect")) rules.push("Anula o dano recebido neste slot.");
  if (card.effects.some(effect => effect.kind === "reflect")) rules.push("Anula e devolve o dano ofensivo dos slots anterior e atual, respeitando as defesas do adversário.");

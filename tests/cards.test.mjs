@@ -25,7 +25,7 @@ test("confirmed meanings are stored independently of displayed text", () => {
  assert.equal(nextAvailableRound(warriorCards[6],1),3);
  assert.equal(nextAvailableRound(warriorCards[9],1),4);
  assert.equal(warriorRulePolicy.nextSlotOverflow,"discard");
- assert.equal(warriorRulePolicy.riposte.requires,"actual_opponent_damage");
+ assert.equal(warriorRulePolicy.riposte.requires,"opponent_damage_including_defense_blocked");
  assert.equal(warriorRulePolicy.riposte.againstRiposte,"no_effect");
 });
 

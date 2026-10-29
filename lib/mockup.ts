@@ -1,9 +1,9 @@
-import { applyAction, availableCardsFor, missingRequiredCards, newGame, type GameState, type Player } from "./game.ts";
+import { applyAction, isRevealed, availableCardsFor, missingRequiredCards, newGame, type GameState, type Player } from "./game.ts";
 import { definitionFor, isMandatoryCard } from "./cards.ts";
 
 // The visual sandbox runs the real rules entirely in memory. It never calls /api/room.
 export function prepareOpponent(input: GameState): GameState {
- let game = input;
+ let game = isRevealed(input) && input.nextRoundReady[1] ? applyAction(input, 2, { type: "reset" }) : input;
  const cards = availableCardsFor(game, 2);
  const required = missingRequiredCards(game, 2);
  const actions = cards.filter(card => !isMandatoryCard(definitionFor(2, card)!));

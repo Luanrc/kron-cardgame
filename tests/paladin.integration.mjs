@@ -37,7 +37,7 @@ assert.equal(room.battle[3].holyPowerSpent[1],2);
 assert.equal(room.battle[3].holyValue[1],1);
 assert.equal((await read("spectator")).holySpending[1]["paladin-1-7"],2);
 assert.deepEqual((await read(1)).holyPower,room.holyPower);
-await act(1,{type:"reset"});
+await nextRound(1);
 assert.equal(room.holyPower[1],3);
 assert.deepEqual(room.holySpending,{1:{},2:{}});
 await fill(["paladin-1-1","paladin-1-10","paladin-1-3","paladin-1-2","paladin-1-5"],["A","B","D","C","E"]);
@@ -52,3 +52,5 @@ assert.equal(room.battle[2].holyPowerGained[1],1);
 assert.equal(room.battle[4].holyPowerGained[1],0);
 assert.deepEqual((await read("spectator")).holyPower,{1:2,2:0});
 console.log("Passed: private chosen spending, one X card per round, successful resource generation, same-round use, persistent balance, forward-only floating defense and public combat results.");
+
+async function nextRound(player) { await act(player, { type: "reset" }); return act(player === 1 ? 2 : 1, { type: "reset" }); }

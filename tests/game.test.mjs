@@ -1,3 +1,4 @@
+import { advanceRound } from "./round-helpers.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { newGame, applyAction, roomView, cardsFor, requiredCardsFor, availableCardsFor, normalizeGameState } from "../lib/game.ts";
@@ -44,12 +45,12 @@ test("cards stay concealed until BOTH ready, then reveal in their chosen slots",
  s = applyAction(s,1,{type:"ready"});
  assert.equal(roomView(s,2,1).revealed,false);
  assert.throws(() => applyAction(s,1,{type:"place",slot:0,card:"6"}));
- assert.throws(() => applyAction(s,2,{type:"reset"}));
+ assert.throws(() => advanceRound(s));
  s = applyAction(s,2,{type:"place",slot:4,card:"J"});
  s = applyAction(s,2,{type:"ready"});
  assert.equal(roomView(s,1,2).revealed,true);
  assert.deepEqual(roomView(s,1,2).fields[1].slots,["A","B","C","D","J"]);
- const reset = applyAction(s,1,{type:"reset"});
+ const reset = advanceRound(s);
  assert.equal(reset.round,2);
  assert.deepEqual(reset.slots,newGame(2).slots);
  assert.deepEqual(reset.ready,newGame(2).ready);
@@ -83,7 +84,7 @@ test("fatigue is public only on reveal, blocks later rounds, and recovers per pl
   {card:"9",remainingRounds:2,availableRound:4},
   {card:"10",remainingRounds:2,availableRound:4},
  ]);
- s = applyAction(s,1,{type:"reset"});
+ s = advanceRound(s);
  assert.equal(s.round,2);
  assert.ok(!availableCardsFor(s,1).includes("7"));
  assert.ok(availableCardsFor(s,2).includes("G"));
@@ -93,7 +94,7 @@ test("fatigue is public only on reveal, blocks later rounds, and recovers per pl
  s = ["A","B","C","D","G"].reduce((state,card,slot)=>applyAction(state,2,{type:"place",slot,card}),s);
  s = applyAction(s,1,{type:"ready"});
  s = applyAction(s,2,{type:"ready"});
- s = applyAction(s,1,{type:"reset"});
+ s = advanceRound(s);
  assert.equal(s.round,3);
  assert.ok(availableCardsFor(s,1).includes("7"));
  assert.ok(!availableCardsFor(s,2).includes("G"));
@@ -101,7 +102,7 @@ test("fatigue is public only on reveal, blocks later rounds, and recovers per pl
  s = fill(fill(s,1),2);
  s = applyAction(s,1,{type:"ready"});
  s = applyAction(s,2,{type:"ready"});
- s = applyAction(s,2,{type:"reset"});
+ s = advanceRound(s);
  assert.equal(s.round,4);
  assert.deepEqual(s.fatigue,{1:{},2:{}});
  assert.equal(availableCardsFor(s,1).length,10);
@@ -134,7 +135,7 @@ test("life is resolved once after both ready and persists between rounds",()=>{
  assert.deepEqual(roomView(s,"spectator",1).life,s.life);
  assert.throws(()=>applyAction(s,2,{type:"ready"}));
  assert.deepEqual(normalizeGameState(s).life,{1:9,2:9});
- s = applyAction(s,1,{type:"reset"});
+ s = advanceRound(s);
  assert.deepEqual(s.life,{1:9,2:9});
  assert.deepEqual(s.battle,[]);
  assert.equal(s.match,1);
@@ -152,7 +153,8 @@ test("lethal results lock the game, a simultaneous knockout draws, and restart i
  for (const action of [{type:"reset"},{type:"ready"},{type:"place",slot:0,card:"4"}]) assert.throws(()=>applyAction(s,1,action),/terminou/);
  assert.throws(()=>applyAction(s,"spectator",{type:"restart"}));
  const restarted = applyAction(s,1,{type:"restart"});
- assert.deepEqual(restarted,newGame(1,2));
+ assert.deepEqual(restarted.entered,{1:true,2:true});
+ assert.equal(restarted.round,1);assert.equal(restarted.match,2);assert.deepEqual(restarted.slots,newGame().slots);assert.deepEqual(restarted.life,newGame().life);assert.ok(restarted.preparationStartedAt);
  assert.throws(()=>applyAction(restarted,1,{type:"restart"}),/ainda não terminou/);
 });
 

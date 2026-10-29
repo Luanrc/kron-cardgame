@@ -17,7 +17,7 @@ if (start.result) {
  round = start.round;
  match = start.match;
 } else if (start.revealed) {
- start = await act(1, { type: "reset" });
+ start = await nextRound(1);
  round = start.round;
 }
 assert.ok(start.fields.every(field => field.slots.every(card => card === null)), "Local room must be empty or already revealed before testing.");
@@ -65,7 +65,7 @@ assert.deepEqual(one.fields, two.fields);
 assert.deepEqual((await read("spectator")).fields, one.fields);
 assert.deepEqual(one.fields[1].slots, ["A", "B", "C", "D", "E"]);
 for (let cycle=0;!one.result && cycle<10;cycle++) {
- const reset = await act(1,{type:"reset"});
+ const reset = await nextRound(1);
  assert.equal(reset.round,round+1);
  assert.deepEqual(reset.life,one.life);
  assert.ok(reset.fields.every(field=>!field.ready && field.slots.every(card=>card===null)));
@@ -95,3 +95,5 @@ assert.ok(restarted.fatigue.every(side=>side.cards.length===0));
 match = restarted.match; round = restarted.round;
 await act(2,{type:"ready"},409,round,oldMatch);
 console.log("Passed: concurrent writes, mandatory cards, hidden cards, fatigue checks, shared life, one-time damage, lethal ending, restart and stale-round/match rejection.");
+
+async function nextRound(player) { await act(player, { type: "reset" }); return act(player === 1 ? 2 : 1, { type: "reset" }); }

@@ -1,3 +1,4 @@
+import { advanceRound } from "./round-helpers.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { rogueCards, warriorCards, monkCards, deckFor, validateDeck, isMandatoryCard } from "../lib/cards.ts";
@@ -13,7 +14,7 @@ test("Rogue reference keeps all ten cards, duplicate bleeding attacks and two ma
  assert.doesNotThrow(()=>validateDeck(rogueCards));
  assert.deepEqual(rogueCards[2].effects,rogueCards[3].effects);
  assert.deepEqual(rogueCards[2].bleeding,rogueCards[3].bleeding);
- assert.deepEqual(rogueCards.map(card=>card.fatigue?.rounds??0),[0,0,0,0,0,1,1,2,0,2]);
+ assert.deepEqual(rogueCards.map(card=>card.fatigue?.rounds??0),[0,0,0,0,0,1,1,2,1,2]);
  assert.deepEqual(rogueCards[8].floating,{effect:"damage",range:1,points:2});
  assert.deepEqual(rogueCards[9].floating,{effect:"bleeding",range:3,points:1});
  assert.equal(rogueCards[9].bleeding.doubleAfterAdding,true);
@@ -132,7 +133,7 @@ test("Floating plans persist secretly before reveal, lock at Ready and reset wit
  state=applyAction(state,2,{type:"ready"});
  assert.deepEqual(roomView(state,"spectator",0).floating,state.floating);
  const markers=structuredClone(state.bleeding);
- state=applyAction(state,1,{type:"reset"});
+ state=advanceRound(state);
  assert.deepEqual(state.floating,emptyFloating());
  assert.deepEqual(state.bleeding,markers);
  assert.equal(roomView(state,1,0).bleedingRound,2);

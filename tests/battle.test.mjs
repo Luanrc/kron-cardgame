@@ -11,7 +11,7 @@ test("damage trades simultaneously, defense absorbs one for one and cannot heal"
  assert.deepEqual(resolveSlot(cards("4","A")).damageTaken,{1:0,2:1});
  assert.deepEqual(resolveSlot(cards("3","A")).damageTaken,{1:0,2:0});
 });
-test("Riposte needs actual damage, does not self-trigger and can be prevented by defense",()=>{
+test("Riposte reacts to damage blocked by defense and never self-triggers",()=>{
  const reactive = resolveSlot(cards("5","D"));
  assert.deepEqual(reactive.damageTaken,{1:1,2:2});
  assert.equal(reactive.riposteTriggered[1],true);
@@ -19,8 +19,8 @@ test("Riposte needs actual damage, does not self-trigger and can be prevented by
  assert.deepEqual(resolveSlot(cards("8","H")).damageTaken,{1:0,2:0});
  const incoming = emptyBonuses(); incoming[1].defense = 1;
  const blocked = resolveSlot(cards("5","D"),incoming);
- assert.equal(blocked.riposteTriggered[1],false);
- assert.deepEqual(blocked.damageTaken,{1:0,2:0});
+ assert.equal(blocked.riposteTriggered[1],true);
+ assert.deepEqual(blocked.damageTaken,{1:0,2:2});
 });
 test("stun cancels the opposing card including its arrow, but preserves incoming bonuses",()=>{
  const incoming = emptyBonuses(); incoming[2].damage = 1;

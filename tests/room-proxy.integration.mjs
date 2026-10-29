@@ -28,8 +28,10 @@ assert.ok(hidden.fields.every(field => field.slots.every(card => card === "hidde
 await act(2, { type: "ready" });
 assert.equal(room.revealed, true);
 assert.deepEqual(room.life, { 1: 7, 2: 10 });
-await act(1, { type: "reset" });
+await nextRound(1);
 assert.deepEqual(room.life, { 1: 7, 2: 10 });
 await act(undefined, { type: "full_reset" });
 assert.deepEqual(room.life, { 1: 10, 2: 10 });
 console.log("Passed: Next room handler -> local Cloudflare D1, independent decks, life, hidden cards, reveal, simultaneous damage, next round and full reset.");
+
+async function nextRound(player) { await act(player, { type: "reset" }); return act(player === 1 ? 2 : 1, { type: "reset" }); }
