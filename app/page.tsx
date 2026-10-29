@@ -130,6 +130,7 @@ export default function Home() {
    <p>Escolha como entrar na sala.</p>
    <div className="buttons"><button disabled={busy} onClick={() => choosePlayer(1)}>Player 1</button><button disabled={busy} onClick={() => choosePlayer(2)}>Player 2</button><button className="secondary" disabled={busy} onClick={() => enter("spectator")}>Espectador</button></div>
    <QuickTutorial />
+   <a className="prototype-entry" href="/mockup">Experimentar mesa 3D →</a>
    <div className="lobby-reset"><button className="secondary reset-button" disabled={busy} onClick={fullReset}>{busy ? "Resetando…" : "Resetar partida"}</button><span>Limpa a sala para os dois jogadores.</span></div>
    {notice && <p className="notice" role="status">{notice}</p>}
    {error && <p className="error" role="alert">{error}</p>}

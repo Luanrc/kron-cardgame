@@ -18,6 +18,7 @@ button.secondary:hover:not(:disabled) { background: #3a4650; }
 button.secondary:disabled, .ready-button:disabled, .enter-room:disabled { opacity: .5; }
 .lobby-reset { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 18px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .lobby-reset span { font-size: 13px; color: var(--muted); }
+.prototype-entry { display: inline-block; margin-top: 18px; color: #b6c9bd; font-size: 13px; text-underline-offset: 4px; }
 .quick-tutorial { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 26px; align-items: center; border-top: 1px solid var(--line); margin-top: 26px; padding-top: 26px; }
 .tutorial-art { margin: 0; background: var(--background); border-radius: 5px; overflow: hidden; }
 .tutorial-art img { display: block; width: 100%; height: auto; }
