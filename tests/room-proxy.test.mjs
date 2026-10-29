@@ -4,6 +4,7 @@ import { GET, POST } from "../server/room-handler.ts";
 
 test("Vercel forwards viewer queries and authoritative status without caching or private headers", async (t) => {
  t.mock.method(globalThis, "fetch", async (url, options) => {
+  assert.equal(url.origin, "https://kron-card-game-prototipo.lcmcontadoresonline.chatgpt.site");
   assert.equal(url.search, "?player=spectator");
   assert.equal(options.cache, "no-store");
   assert.equal(options.redirect, "error");

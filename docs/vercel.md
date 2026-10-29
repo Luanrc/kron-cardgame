@@ -14,7 +14,7 @@ O repositório suporta duas hospedagens:
 5. Node.js: **22.x**.
 6. Faça o deploy do commit novo. Não refaça o deploy do commit antigo `eb15324`.
 
-A variável de servidor opcional `KRON_ROOM_API_URL` troca o endereço completo da API autoritativa. O padrão é `https://kron-card-game-prototipo.nicelime36.chatgpt.site/api/room`. Não aponte para a própria API da Vercel, pois isso criaria um ciclo. Não é necessário configurar essa variável para usar a sala atual.
+A variável de servidor opcional `KRON_ROOM_API_URL` troca o endereço completo da API autoritativa. O padrão é `https://kron-card-game-prototipo.lcmcontadoresonline.chatgpt.site/api/room`. Não aponte para a própria API da Vercel, pois isso criaria um ciclo. Não é necessário configurar essa variável para usar a sala atual.
 
 Essa configuração depende da disponibilidade do servidor original. Uma migração independente exigiria um banco persistente compatível com a Vercel e a transferência da API; não use arquivos locais ou memória de uma função serverless para guardar a partida.
 

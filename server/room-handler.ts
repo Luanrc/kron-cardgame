@@ -1,6 +1,6 @@
 // Next.js/Vercel talks to the existing authoritative room over HTTP.
 // next.config.ts selects this module; Sites uses room-cloudflare.ts through tsconfig.
-const defaultRoomApi = "https://kron-card-game-prototipo.nicelime36.chatgpt.site/api/room";
+const defaultRoomApi = "https://kron-card-game-prototipo.lcmcontadoresonline.chatgpt.site/api/room";
 const headers = { "Cache-Control": "no-store" };
 const reply = (error: string, status: number) => Response.json({ error }, { status, headers });
 
