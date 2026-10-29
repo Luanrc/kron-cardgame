@@ -12,4 +12,4 @@ const compact: Record<string, CardDefinition["text"]> = {
  "paladin-07": { main: ["+X dano"], footer: ["X = gasto ÷ 2", "(Fadiga 1)"] },
  "paladin-10": { main: ["+X def"], footer: ["Flutuando 1 →", "X = gasto ÷ 2", "(Fadiga 2)"] },
 };
-export const compactCardText = (card: CardDefinition) => compact[card.id] ?? card.text;
+export const compactCardText = (card: CardDefinition) => card.brief ?? compact[card.id] ?? card.text;

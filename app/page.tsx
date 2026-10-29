@@ -3,7 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { cardsFor, requiredCardsFor, type GameAction, type Player, type Viewer, type RoomView } from "../lib/game";
 import { CardZoom } from "../components/card-zoom";
 import { CardText } from "../components/card-text";
-import { definitionFor, cardDescription, isMandatoryCard, deckOptions, classNameFor, initialLifeFor, type DeckId } from "../lib/cards";
+import { definitionFor, cardDescription, isMandatoryCard, deckOptions, classNameFor, initialLifeFor, isDeckPlayable, type DeckId } from "../lib/cards";
+import { CreatureText, AttackTargetPanel } from "../components/creature-panel";
+import { isSummonActive } from "../lib/game";
+import { ResourcePanel, PremonitionPanel } from "../components/resource-panel";
+import { DeckPreview } from "../components/deck-preview";
 import { FatiguePanel } from "../components/fatigue-panel";
 import { LifePool, BattleSummary } from "../components/battle-summary";
 import { FloatingPanel, FloatingSummary } from "../components/floating-panel";
@@ -111,14 +115,16 @@ export default function Home() {
   finally { pending.current = false; setBusy(false); }
  }
  const own = room?.fields.find(field => field.player === player);
- const filled = room?.ownSlots.filter(Boolean).length ?? 0;
- const locked = busy || !room || !!own?.ready || !!room.result;
+ const filled = room && player && player !== "spectator" ? room.ownSlots.filter((card, slot) => card || room.creatures[player][slot]).length : 0;
+ const visionOnPlayer = player && player !== "spectator" && room ? room.visions[player === 1 ? 2 : 1] : null;
+ const waitingForVision = !!room && visionOnPlayer?.round === room.round && visionOnPlayer.slot === null;
+ const locked = busy || !room || !!own?.ready || !!room.result || waitingForVision;
  const fatiguedCards = room?.fatigue.find(side => side.player === player)?.cards.map(entry => entry.card) ?? [];
  const handCards = player && player !== "spectator" && room ? cardsFor(player, room.decks[player]).filter(card => !fatiguedCards.includes(card)) : [];
- const required = player && player !== "spectator" && room ? requiredCardsFor(player, room.decks[player]) : [];
+ const required = player && player !== "spectator" && room ? room.noActionOptional[player] ? [] : requiredCardsFor(player, room.decks[player]) : [];
  const missingRequired = required.filter(card => !room?.ownSlots.includes(card));
  return <main>
-  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.14 · Escolha sua classe, prepare seus cinco slots.</p>
+  <h1>Kron Card Game</h1><p className="subtitle">Protótipo 0.15 · Preparação local · Escolha sua classe, prepare seus cinco slots.</p>
   {!player && !chosenPlayer ? <section aria-label="Escolher jogador">
    <p>Escolha como entrar na sala.</p>
    <div className="buttons"><button disabled={busy} onClick={() => choosePlayer(1)}>Player 1</button><button disabled={busy} onClick={() => choosePlayer(2)}>Player 2</button><button className="secondary" disabled={busy} onClick={() => enter("spectator")}>Espectador</button></div>
@@ -132,7 +138,8 @@ export default function Home() {
     <input type="radio" name="deck" value={deck.id} checked={chosenDeck === deck.id} disabled={busy} onChange={() => { setChosenDeck(deck.id); setError(""); }} aria-label={deck.name} />
     <span><strong>{deck.name}</strong><span className="deck-description">{deck.description}</span><small>{cardsFor(chosenPlayer, deck.id).length} cartas · {initialLifeFor(deck.id)} pontos de vida</small></span>
    </label>)}</div>
-   <div className="actions"><button className="enter-room" disabled={!chosenDeck || busy} onClick={confirmDeck}>{busy ? "Entrando…" : "Entrar na sala"}</button></div>
+   {chosenDeck && <DeckPreview deck={chosenDeck} />}
+   <div className="actions"><button className="enter-room" disabled={!chosenDeck || !isDeckPlayable(chosenDeck) || busy} onClick={confirmDeck}>{busy ? "Entrando…" : "Entrar na sala"}</button></div>
    {error && <p className="error" role="alert">{error}</p>}
   </section> : player ? <section aria-label="Sala compartilhada">
    <div className="room-header"><h2>Sala única · {player === "spectator" ? "Espectador" : "Player " + player}</h2><button className="secondary" disabled={busy} onClick={leave}>Sair</button></div>
@@ -140,30 +147,34 @@ export default function Home() {
    {room && <>
     <p className="round-label">Partida {room.match} · Rodada {room.round}</p>
     <LifePool room={room} />
+    {player !== "spectator" && <PremonitionPanel room={room} player={player} busy={busy} onChoose={slot => act({ type: "foretell", slot })} />}
     <BattleSummary room={room} />
     <FloatingSummary room={room} />
     <p className={"phase " + (room.revealed ? "revealed" : "")} role="status">
-     {room.result ? "Fim da partida." : room.revealed ? "Ambos prontos. Cartas reveladas!" : player === "spectator" ? "Assistindo à preparação. As cartas serão reveladas quando ambos estiverem prontos." : own?.ready ? "Você está pronto. Aguardando o oponente…" : "Escolha 5 cartas e coloque uma em cada slot."}
+     {room.result ? "Fim da partida." : room.revealed ? "Ambos prontos. Cartas reveladas!" : player === "spectator" ? "Assistindo à preparação. As cartas serão reveladas quando ambos estiverem prontos." : own?.ready ? "Você está pronto. Aguardando o oponente…" : "Preencha os 5 slots com cartas ou invocações."}
     </p>
     <div className="battlefield" aria-label="Campo de batalha">
      <h3>Campo de batalha</h3>
      <div className="board-scroll" tabIndex={0} role="region" aria-label="Slots dos dois jogadores">
-      <div className="board">
+      <div className={"board" + (Object.values(room.creatures).some(slots => slots.some(Boolean)) ? " has-creatures" : "")}>
        {(player === "spectator" ? [2, 1] as Player[] : [player === 1 ? 2 : 1, player] as Player[]).map(side => {
         const field = room.fields.find(item => item.player === side)!;
         return <div className={"player-field player-" + side + " deck-" + room.decks[side]} key={side}>
-         <p className="field-label">Player {side} · {classNameFor(room.decks[side])}{player !== "spectator" && (side === player ? " · Você" : " · Oponente")} <span className="field-status">{field.slots.filter(Boolean).length}/5 · {field.ready ? "Pronto" : "Preparando"}</span></p>
+         <p className="field-label">Player {side} · {classNameFor(room.decks[side])}{player !== "spectator" && (side === player ? " · Você" : " · Oponente")} <span className="field-status">{field.slots.filter((card, slot) => card || room.creatures[side][slot]).length}/5 · {field.ready ? "Pronto" : "Preparando"}</span></p>
          <div className="slot-row" role="group" aria-label={"Campo do Player " + side}>
           {field.slots.map((card, slot) => {
            const label = "Player " + side + ", slot " + (slot + 1);
-           const definition = room.revealed && card ? definitionFor(side, card) : undefined;
-           const face = definition ? <CardText card={definition} /> : card === null ? "Vazio" : "Virada";
-           const cardLabel = definition ? ", " + cardDescription(definition) : card ? ", carta virada" : ", vazio";
+           const creature = room.creatures[side][slot];
+           const ownOverlay = side === player ? room.ownSlots[slot] : null;
+           const definition = card && card !== "hidden" ? definitionFor(side, card) : undefined;
+           const overlayFace = definition ? <CardText card={definition} /> : card === null ? "Vazio" : "Virada";
+           const face = creature ? <><CreatureText creature={creature} />{card && !definition?.summon && <span className="creature-overlay">{definition ? definition.text.main.join(" · ") : "Fortalecimento virado"}</span>}</> : overlayFace;
+           const cardLabel = creature ? ", " + (creature.kind === "wolf" ? "Lobo" : "Urso") + ", vida " + creature.life + "/" + creature.maxLife + (card && !definition?.summon ? ", fortalecimento" : "") : definition ? ", " + cardDescription(definition) : card ? ", carta virada" : ", vazio";
            const bleeding = room.bleeding[side][slot];
            const content = <><span className="slot-number">Slot {slot + 1}</span><span className="card-face">{face}</span>{bleeding > 0 && <span className="bleeding-badge">Sangramento {bleeding} · R{room.bleedingRound}</span>}</>;
-           const className = "card-slot " + (card ? room.revealed ? "face-up" : "face-down" : "empty-slot");
-           return <CardZoom key={slot} side={side} deck={room.decks[side]} value={face} previewValue={definition ? <CardText card={definition} detailed /> : face} caption={"Player " + side + " · Slot " + (slot + 1)} enabled={card !== null} hiddenCard={!room.revealed} focusable={side !== player || locked}>
-            {side === player ? <button className={className} disabled={locked || (!selected && !card)} aria-label={label + cardLabel} onClick={() => act({ type: "place", slot, card: selected })}>{content}</button>
+           const className = "card-slot " + (creature ? "face-up creature-slot" : card ? definition ? "face-up" : "face-down" : "empty-slot");
+           return <CardZoom key={slot} side={side} deck={room.decks[side]} value={face} previewValue={creature ? <><CreatureText creature={creature} />{definition?.fortify && <CardText card={definition} detailed />}</> : definition ? <CardText card={definition} detailed /> : face} caption={"Player " + side + " · Slot " + (slot + 1)} enabled={card !== null || !!creature} hiddenCard={card === "hidden" && !creature} focusable={side !== player || locked || (!!creature && !ownOverlay)}>
+            {side === player ? <button className={className} disabled={locked || (visionOnPlayer?.round === room.round && visionOnPlayer.slot === slot) || (!selected && !ownOverlay)} aria-label={label + cardLabel} onClick={() => act({ type: "place", slot, card: selected })}>{content}</button>
             : <div className={className} aria-label={label + cardLabel}>{content}</div>}
            </CardZoom>;
           })}
@@ -176,25 +187,27 @@ export default function Home() {
     <FatiguePanel fatigue={room.fatigue} />
     </div>
     {player !== "spectator" && !room.revealed && <div className={"hand player-" + player + " deck-" + room.decks[player]} aria-label="Sua mão">
-     <h3>Sua mão <span className="field-status">{handCards.length - filled} disponíveis</span></h3>
-     <p className="required-note">As {required.length} cartas “Não age” são obrigatórias nesta rodada e não têm Fadiga. {missingRequired.length > 0 ? "Faltam " + missingRequired.length + " no campo." : "Todas estão no campo."}</p>
-     <p className="hint">{own?.ready ? "Suas cartas estão travadas até a revelação." : selected ? "Carta " + definitionFor(player, selected)?.number + " selecionada. Clique no slot de destino." : "Clique em uma carta e depois em um slot. Para retirar, clique em um slot ocupado sem carta selecionada."}</p>
+     <h3>Sua mão <span className="field-status">{handCards.filter(card => !room.ownSlots.includes(card) && !isSummonActive(room, player, card)).length} disponíveis</span></h3>
+     <p className="required-note">{required.length === 0 ? "Fúria ativa: as cartas Não age são opcionais nesta rodada." : <>As {required.length} cartas “Não age” são obrigatórias nesta rodada e não têm Fadiga. {missingRequired.length > 0 ? "Faltam " + missingRequired.length + " no campo." : "Todas estão no campo."}</>}</p>
+     <p className="hint">{own?.ready ? "Suas cartas estão travadas até a revelação." : selected ? "Carta " + definitionFor(player, selected)?.number + " selecionada. Clique no slot de destino." : "Clique na carta e no slot. Invocações já preenchem seu slot; só aceitam fortalecimento. Clique sem seleção para retirar apenas a carta colocada nesta rodada."}</p>
      <div className="hand-cards">
       {handCards.map(card => {
        const slot = room.ownSlots.indexOf(card);
        const definition = definitionFor(player, card)!;
-       return <CardZoom key={card} side={player} deck={definition.classId} value={<CardText card={definition} />} previewValue={<CardText card={definition} detailed />} caption="Sua mão" focusable={locked || slot !== -1}><button className={"hand-card " + (selected === card ? "selected" : "")} disabled={locked || slot !== -1} aria-pressed={selected === card} aria-label={cardDescription(definition) + (slot !== -1 ? ", no slot " + (slot + 1) : "")} onClick={() => setSelected(selected === card ? null : card)}>
-        <CardText card={definition} />{isMandatoryCard(definition) && <small className="mandatory-badge">Obrigatória</small>}{slot !== -1 && <small>Slot {slot + 1}</small>}
+       return <CardZoom key={card} side={player} deck={definition.classId} value={<CardText card={definition} />} previewValue={<CardText card={definition} detailed />} caption="Sua mão" focusable={locked || slot !== -1}><button className={"hand-card " + (selected === card ? "selected" : "")} disabled={locked || slot !== -1 || isSummonActive(room, player, card) || (!!definition.fortify && !room.creatures[player].some(Boolean))} aria-pressed={selected === card} aria-label={cardDescription(definition) + (slot !== -1 ? ", no slot " + (slot + 1) : "")} onClick={() => setSelected(selected === card ? null : card)}>
+        <CardText card={definition} />{isSummonActive(room, player, card) && <small>Criatura no campo</small>}{required.includes(card) && <small className="mandatory-badge">Obrigatória</small>}{slot !== -1 && <small>Slot {slot + 1}</small>}
        </button></CardZoom>;
       })}
      </div>
+     <AttackTargetPanel room={room} player={player} locked={locked} onTarget={(slot, target) => act({ type: "attack_target", slot, target })} />
+     <ResourcePanel room={room} player={player} />
      <FloatingPanel room={room} player={player} locked={locked} onAim={(card, targets) => act({ type: "aim", card, targets })} />
      <HolyPowerPanel room={room} player={player} locked={locked} onSave={(card, amount) => act({ type: "holy_spend", card, amount })} />
     </div>}
     {player !== "spectator" && <div className="actions">
-     {!room.revealed && !own?.ready && filled === 5 && missingRequired.length === 0 && <button className="ready-button" disabled={busy} onClick={() => act({ type: "ready" })}>{busy ? "Salvando…" : "Pronto"}</button>}
+     {!room.revealed && !own?.ready && filled === 5 && missingRequired.length === 0 && <button className="ready-button" disabled={busy || (room.visions[player]?.round === room.round && room.visions[player]?.slot === null)} onClick={() => act({ type: "ready" })}>{busy ? "Salvando…" : "Pronto"}</button>}
      {!room.revealed && !own?.ready && filled === 5 && missingRequired.length > 0 && <p className="required-note" role="status">Inclua todas as cartas “Não age” para poder clicar em Pronto.</p>}
-     {!room.revealed && !own?.ready && filled < 5 && <p className="hint">Preencha os 5 slots para ficar pronto. ({filled}/5)</p>}
+     {!room.revealed && !own?.ready && filled < 5 && <p className="hint">Preencha os 5 slots com cartas ou invocações para ficar pronto. ({filled}/5)</p>}
      {room.revealed && !room.result && <button className="secondary" disabled={busy} onClick={() => act({ type: "reset" })}>Nova rodada</button>}
      {room.result && <button className="secondary" disabled={busy} onClick={() => act({ type: "restart" })}>Nova partida</button>}
     </div>}

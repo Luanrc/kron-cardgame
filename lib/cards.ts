@@ -1,12 +1,20 @@
+import { gunnerCards, rangerCards, guardianCards, mageCards, barbarianCards, summonerCards } from "./expansion-cards.ts";
 import type { Player } from "./game";
-export type DeckId = "warrior" | "monk" | "rogue" | "paladin";
+export type DeckId = "warrior" | "monk" | "rogue" | "paladin" | "gunner" | "ranger" | "guardian" | "mage" | "barbarian" | "summoner";
 export const deckOptions: readonly { id: DeckId; name: string; description: string }[] = [
  { id: "warrior", name: "Guerreiro", description: "Combina ataques e defesa. Ripostar reage ao dano sofrido, e Atordoamento impede a carta adversária de agir." },
  { id: "monk", name: "Monge", description: "Defletir anula o dano do slot. Refletir protege os slots anterior e atual, devolvendo o dano ao adversário." },
  { id: "rogue", name: "Ladino", description: "Sangramento deixa dano para a próxima rodada. Flutuando permite escolher os slots atingidos dentro do alcance da carta." },
  { id: "paladin", name: "Paladino", description: "Acumula Poder Sagrado com ataques e defesas bem-sucedidos. Escolha quanto gastar para fortalecer uma carta com X por rodada." },
+ { id: "gunner", name: "Atirador", description: "Administra munição para disparos precisos. Recarrega entre ataques e pode gastar até 4 de munição por rodada." },
+ { id: "ranger", name: "Patrulheiro", description: "Prepara ataques para slots futuros e combina dano garantido, Ripostar e Flutuando." },
+ { id: "guardian", name: "Guardião", description: "Sustenta a defesa por vários slots, bloqueia dano garantido com cartas próprias e usa Vingar." },
+ { id: "mage", name: "Mago", description: "Possui 12 cartas e pouca vida. Gera Recurso Arcano para financiar conjurações e efeitos de controle." },
+ { id: "barbarian", name: "Bárbaro", description: "Seus ataques crescem ao sofrer dano. Fúria dispensa as cartas Não age na rodada seguinte." },
+ { id: "summoner", name: "Invocador", description: "Mantém um Lobo e um Urso nos slots entre rodadas. Fortalecimentos melhoram suas criaturas, e o adversário escolhe quem atacar." },
 ];
-export const initialLifeFor = (id: DeckId): number => ({ warrior: 10, monk: 10, rogue: 9, paladin: 12 })[id];
+export const isDeckPlayable = (id: DeckId) => isDeckId(id);
+export const initialLifeFor = (id: DeckId): number => ({ warrior: 10, monk: 10, rogue: 9, paladin: 12, gunner: 10, ranger: 10, guardian: 12, mage: 8, barbarian: 11, summoner: 11 })[id];
 export const classNameFor = (id: DeckId) => deckOptions.find(deck => deck.id === id)!.name;
 export const isDeckId = (value: unknown): value is DeckId => deckOptions.some(deck => deck.id === value);
 
@@ -14,7 +22,7 @@ export const isDeckId = (value: unknown): value is DeckId => deckOptions.some(de
 // Combat must consume these fields, never parse the displayed Portuguese text.
 export type CardEffect =
  | { kind: "no_action" }
- | { kind: "damage" | "defense"; amount: number; slot: "current" | "next" }
+ | { kind: "damage" | "defense"; amount: number; slot: "current" | "next"; delay?: number; guaranteed?: boolean }
  | { kind: "stun"; target: "opposing_card_same_slot" }
  | { kind: "deflect" }
  | { kind: "reflect"; slots: "previous_and_current" };
@@ -22,6 +30,16 @@ export type CardDefinition = {
  id: string;
  classId: DeckId;
  number: number;
+ brief?: { main: readonly string[]; footer: readonly string[] };
+ resource?: { kind: "ammo" | "arcane"; cost?: number; gain?: number; fill?: boolean; gainCondition?: "no_damage_taken" };
+ blocksGuaranteed?: boolean;
+ halfGuaranteed?: boolean;
+ revenge?: boolean;
+ rage?: boolean;
+ premonition?: boolean;
+ damageRule?: { kind: "if_hit"; amount: number } | { kind: "zero_if_defense" } | { kind: "lost_life"; divisor: number };
+ summon?: { creature: "wolf" | "bear"; life: number; damage: number; defense: number; riposte?: boolean };
+ fortify?: { stat: "damage" | "defense" | "life"; amount: number; duration: "round" | "permanent" };
  text: { main: readonly string[]; footer: readonly string[] };
  effects: readonly CardEffect[];
  damageCondition?: "opponent_deals_damage";
@@ -101,7 +119,7 @@ export const paladinCards: readonly CardDefinition[] = [
  { id: "paladin-10", classId: "paladin", number: 10, text: { main: ["+X def"], footer: ["Flutuando 1: atual ou seguinte.", "X = metade do gasto de Poder Sagrado, arredondada para baixo.", "(Fadiga 2)"] }, effects: [], holyPower: { scaling: "defense" }, floating: { effect: "defense", range: 1, points: 1, direction: "forward" }, fatigue: { rounds: 2, reference: "round_placed_and_revealed" } },
 ];
 
-const catalog = { warrior: warriorCards, monk: monkCards, rogue: rogueCards, paladin: paladinCards };
+export const catalog = { warrior: warriorCards, monk: monkCards, rogue: rogueCards, paladin: paladinCards, gunner: gunnerCards, ranger: rangerCards, guardian: guardianCards, mage: mageCards, barbarian: barbarianCards, summoner: summonerCards };
 const definitions = new Map(Object.values(catalog).flat().map(card => [card.id, card]));
 for (const cards of Object.values(catalog)) validateDeck(cards);
 const warriorDecks: Record<Player, readonly DeckCard[]> = {
