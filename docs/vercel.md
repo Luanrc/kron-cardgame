@@ -7,6 +7,10 @@ O repositório suporta duas hospedagens:
 
 ## Configuração
 
+Somente a branch `master` deve ser publicada na Vercel. O `vercel.json` desativa os deploys automáticos de todas as branches (`**: false`) e habilita apenas `master`. A branch de produção do projeto deve continuar sendo `master`. `staging` e branches experimentais são etapas de integração no GitHub, sem novas prévias automáticas. Não criar deploys manuais dessas branches; qualquer exceção exige uma nova decisão do usuário.
+
+Fluxo autorizado: salvar e enviar a branch de trabalho, integrar em `staging`, integrar em `master` e aguardar o deploy de produção da Vercel. O mockup visual fica em `/mockup`, com simulação local no navegador; o multiplayer original continua na entrada principal.
+
 1. Envie este commit ao GitHub e importe o repositório na Vercel.
 2. Framework Preset: **Next.js**. Root Directory: raiz do repositório.
 3. Build Command: **npm run build:vercel**, definido também em `vercel.json`. Remova qualquer override antigo que use `npm run build` ou `vinext build`.

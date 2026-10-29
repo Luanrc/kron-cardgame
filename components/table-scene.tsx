@@ -50,8 +50,8 @@ export function TableScene({ occupied, activeSlot, reducedMotion, enabled }: {
   const wells: THREE.Mesh[] = [], tokens: THREE.Mesh[] = [];
   for (let row = 0; row < 2; row++) for (let slot = 0; slot < 5; slot++) {
    const x = (slot - 2) * 1.73, y = row === 0 ? .89 : -.89;
-   const well = slab(1.48, 1.49, .02, inset); well.position.set(x, y, -.015); group.add(well); wells.push(well);
-   const token = slab(1.36, 1.37, .06, sides[row]); token.position.set(x, y, .03); group.add(token); tokens.push(token);
+   const well = slab(1.20, 1.62, .02, inset); well.position.set(x, y, -.015); group.add(well); wells.push(well);
+   const token = slab(1.10, 1.50, .06, sides[row]); token.position.set(x, y, .03); group.add(token); tokens.push(token);
   }
   const center = slab(8.75, .014, .008, edge, .006); center.position.set(0, 0, .005); group.add(center);
   const gemGeometry = new THREE.OctahedronGeometry(.09); geometries.push(gemGeometry);
